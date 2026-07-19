@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ultimate Texas Hold'em Strategy Trainer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <h1 class="brand">
+          <span>Strategy Trainer</span>
+          Ultimate Texas Hold'em
+        </h1>
+        <div class="stats">
+          <div>
+            <strong id="bankroll">$1000</strong>
+            <span>Bankroll</span>
+          </div>
+          <div>
+            <strong id="accuracy">—</strong>
+            <span>Accuracy</span>
+          </div>
+          <div>
+            <strong id="hands">0</strong>
+            <span>Hands</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="info-panel" id="info-panel" aria-label="Game information">
+        <div class="panel-section" id="section-instructions">
+          <h2 class="panel-heading">1. Instructions</h2>
+          <div class="panel-body" id="instructions-body">
+            <p class="phase-help">Ante and Blind are $10 each. Click below to deal your first hand.</p>
+            <div class="actions">
+              <button class="btn-primary" id="btn-deal" type="button">Deal new hand</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section" id="section-evaluation">
+          <h2 class="panel-heading">2. Evaluation</h2>
+          <div class="panel-body" id="evaluation-body">
+            <p class="panel-placeholder">Decision feedback will appear here after you bet.</p>
+          </div>
+        </div>
+
+        <div class="panel-section" id="section-results">
+          <h2 class="panel-heading">3. Hand Results</h2>
+          <div class="panel-body" id="results-body">
+            <p class="panel-placeholder">Showdown results will appear here when the hand ends.</p>
+          </div>
+        </div>
+      </section>
+
+      <main class="table" aria-label="Poker table">
+        <div class="rail-label dealer">Dealer</div>
+        <div class="seat dealer">
+          <div class="hand-row" id="dealer-cards"></div>
+          <div class="hand-name" id="dealer-hand-name"></div>
+        </div>
+
+        <div class="board-row" id="board"></div>
+
+        <div class="bets">
+          <div class="chip" id="chip-ante"><strong>—</strong>Ante</div>
+          <div class="chip" id="chip-blind"><strong>—</strong>Blind</div>
+          <div class="chip empty" id="chip-play"><strong>—</strong>Play</div>
+        </div>
+
+        <div class="seat player">
+          <div class="hand-row" id="player-cards"></div>
+          <div class="hand-name" id="player-hand-name"></div>
+        </div>
+        <div class="rail-label player">You</div>
+      </main>
+
+      <p class="footer-note">
+        Graded by expected value, with
+        <a href="https://wizardofodds.com/games/ultimate-texas-hold-em/" target="_blank" rel="noopener"
+          >Wizard of Odds</a
+        >
+        basic strategy shown alongside. Ante/Blind $10 · Play $40 / $20 / $10.
+        Practice only — not a real-money game.
+      </p>
+    </div>
+
+    <div class="ev-modal" id="ev-modal" hidden>
+      <div class="ev-modal-backdrop" data-ev-close tabindex="-1"></div>
+      <div
+        class="ev-modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ev-modal-title"
+      >
+        <div class="ev-modal-header">
+          <h2 id="ev-modal-title">Evaluation details</h2>
+          <button type="button" class="ev-modal-close" data-ev-close aria-label="Close">
+            ×
+          </button>
+        </div>
+        <div class="ev-modal-body">
+          <ul class="ev-details-list" id="ev-modal-list"></ul>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/cards.js?v=5"></script>
+    <script src="js/hand.js?v=5"></script>
+    <script src="js/preflop-ev.js?v=5"></script>
+    <script src="js/wizard.js?v=5"></script>
+    <script src="js/strategy.js?v=5"></script>
+    <script src="js/game.js?v=5"></script>
+    <script src="js/ui.js?v=5"></script>
+  </body>
+</html>
