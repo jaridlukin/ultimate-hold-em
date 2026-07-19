@@ -373,7 +373,6 @@
 
     if (phase === "idle") {
       els.instructions.innerHTML =
-        '<p class="phase-help">Ante and Blind are $10 each. Play bets are $40 preflop, $20 on the flop, or $10 on the river. After each decision you\'ll see an evaluation here.</p>' +
         '<div class="actions">' +
         '<button class="btn-primary" id="btn-deal" type="button">Deal new hand</button>' +
         "</div>";
@@ -382,7 +381,6 @@
 
     if (phase === "showdown") {
       els.instructions.innerHTML =
-        '<p class="phase-help">Hand complete. Review the evaluation and results, then deal again.</p>' +
         '<div class="actions">' +
         '<button class="btn-primary" id="btn-deal" type="button">Deal next hand</button>' +
         "</div>";
@@ -391,24 +389,18 @@
 
     if (phase === "preflop") {
       els.instructions.innerHTML =
-        '<p class="phase-title">Preflop</p>' +
-        '<p class="phase-help">Ante $10 + Blind $10 are posted. Raise $40 (4×) or check.</p>' +
         '<div class="actions">' +
         '<button class="btn-raise" type="button" data-act="raise4">Raise $40 (4×)</button>' +
         '<button class="btn-check" type="button" data-act="check">Check</button>' +
         "</div>";
     } else if (phase === "flop") {
       els.instructions.innerHTML =
-        '<p class="phase-title">Flop</p>' +
-        '<p class="phase-help">Raise $20 (2×) or check to see the turn and river.</p>' +
         '<div class="actions">' +
         '<button class="btn-raise" type="button" data-act="raise2">Raise $20 (2×)</button>' +
         '<button class="btn-check" type="button" data-act="check">Check</button>' +
         "</div>";
     } else if (phase === "river") {
       els.instructions.innerHTML =
-        '<p class="phase-title">River</p>' +
-        '<p class="phase-help">Raise $10 (1×) or fold (−$20 Ante + Blind).</p>' +
         '<div class="actions">' +
         '<button class="btn-raise" type="button" data-act="raise1">Raise $10 (1×)</button>' +
         '<button class="btn-fold" type="button" data-act="fold">Fold</button>' +

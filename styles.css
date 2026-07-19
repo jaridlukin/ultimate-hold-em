@@ -390,13 +390,6 @@ body {
   min-width: 11rem;
 }
 
-.phase-title {
-  font-family: "Fraunces", Georgia, serif;
-  font-size: 1.1rem;
-  margin: 0 0 0.3rem;
-  color: var(--gold-bright);
-}
-
 .phase-help {
   margin: 0 0 0.85rem;
   opacity: 0.8;
