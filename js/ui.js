@@ -50,9 +50,7 @@
     chipPlay: document.getElementById("chip-play"),
     instructions: document.getElementById("instructions-body"),
     evaluation: document.getElementById("evaluation-body"),
-    results: document.getElementById("results-body"),
     sectionEvaluation: document.getElementById("section-evaluation"),
-    sectionResults: document.getElementById("section-results"),
     mobileVerdict: document.getElementById("mobile-verdict"),
     evModal: document.getElementById("ev-modal"),
     evModalList: document.getElementById("ev-modal-list"),
@@ -271,78 +269,19 @@
     return { label: "Push", cls: "result-banner--push" };
   }
 
-  function syncMobileVerdict(banner) {
+  function syncVerdict() {
     if (!els.mobileVerdict) return;
-    if (!banner) {
+    const sd = game.showdown;
+    if (!sd) {
       els.mobileVerdict.hidden = true;
       els.mobileVerdict.textContent = "";
       els.mobileVerdict.className = "mobile-verdict";
       return;
     }
+    const banner = resultBanner(sd);
     els.mobileVerdict.hidden = false;
     els.mobileVerdict.textContent = banner.label;
     els.mobileVerdict.className = "mobile-verdict " + banner.cls;
-  }
-
-  function renderResults() {
-    const sd = game.showdown;
-    els.sectionResults.classList.toggle("is-active", !!sd);
-
-    if (!sd) {
-      syncMobileVerdict(null);
-      els.results.innerHTML =
-        '<p class="panel-placeholder">Showdown results will appear here when the hand ends.</p>';
-      return;
-    }
-
-    const banner = resultBanner(sd);
-    syncMobileVerdict(banner);
-    const bannerHtml =
-      '<p class="result-banner ' +
-      banner.cls +
-      '" role="status">' +
-      escapeHtml(banner.label) +
-      "</p>";
-
-    if (sd.folded) {
-      els.results.innerHTML =
-        bannerHtml +
-        "<p>" +
-        escapeHtml(sd.message) +
-        '</p><p class="result-net">Net this hand: <strong>' +
-        money(sd.net) +
-        "</strong></p>";
-      return;
-    }
-
-    const blindLine =
-      sd.winner === "player" && sd.blindPay > 0
-        ? "<p>Blind bonus: <strong>" + money(sd.blindPay) + "</strong> (" + sd.playerHand.name + ")</p>"
-        : sd.winner === "player"
-          ? "<p>Blind pushes (less than a straight).</p>"
-          : "";
-
-    els.results.innerHTML =
-      bannerHtml +
-      "<p>" +
-      escapeHtml(sd.resultText) +
-      "</p>" +
-      "<p>Your hand: <strong>" +
-      escapeHtml(sd.playerHand.name) +
-      "</strong> · Dealer: <strong>" +
-      escapeHtml(sd.dealerHand.name) +
-      "</strong>" +
-      (sd.qualifies ? "" : " (does not qualify)") +
-      "</p>" +
-      "<p>Play bet: <strong>" +
-      sd.playMult +
-      "×</strong> ($" +
-      sd.playMult * game.ante +
-      ")</p>" +
-      blindLine +
-      '<p class="result-net">Net this hand: <strong>' +
-      money(sd.dollarNet) +
-      "</strong></p>";
   }
 
   function bindActionButtons() {
@@ -415,7 +354,7 @@
       renderTable();
       renderInstructions();
       renderEvaluation();
-      renderResults();
+      syncVerdict();
     } catch (err) {
       console.error(err);
       els.instructions.innerHTML =
