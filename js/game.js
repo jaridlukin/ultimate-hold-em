@@ -10,13 +10,58 @@ const { explainDecision, actionLabel } = window.UTHEv;
 
 const ANTE = 10;
 const BLIND = 10;
+const STATS_KEY = "uth-trainer-stats";
+
+/** @returns {{ bankroll: number, handNumber: number, decisions: number, correct: number }|null} */
+function loadPersistedStats() {
+  try {
+    const raw = localStorage.getItem(STATS_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== "object") return null;
+    const bankroll = Number(data.bankroll);
+    const handNumber = Number(data.handNumber);
+    const decisions = Number(data.decisions);
+    const correct = Number(data.correct);
+    if (![bankroll, handNumber, decisions, correct].every(Number.isFinite)) return null;
+    return {
+      bankroll,
+      handNumber: Math.max(0, Math.floor(handNumber)),
+      decisions: Math.max(0, Math.floor(decisions)),
+      correct: Math.max(0, Math.floor(correct)),
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+/** @param {ReturnType<typeof createGame>} game */
+function savePersistedStats(game) {
+  try {
+    localStorage.setItem(
+      STATS_KEY,
+      JSON.stringify({
+        bankroll: game.bankroll,
+        handNumber: game.handNumber,
+        decisions: game.stats.decisions,
+        correct: game.stats.correct,
+      })
+    );
+  } catch (_) {
+    /* ignore quota / private mode */
+  }
+}
 
 function createGame() {
+  const saved = loadPersistedStats();
   return {
-    bankroll: 1000,
+    bankroll: saved ? saved.bankroll : 1000,
     ante: ANTE,
-    handNumber: 0,
-    stats: { decisions: 0, correct: 0 },
+    handNumber: saved ? saved.handNumber : 0,
+    stats: {
+      decisions: saved ? saved.decisions : 0,
+      correct: saved ? saved.correct : 0,
+    },
     /** @type {ReturnType<typeof newHand>|null} */
     hand: null,
     phase: "idle", // idle | preflop | flop | river | feedback | showdown
@@ -37,6 +82,7 @@ function newHand(game) {
 
   game.handNumber += 1;
   game.bankroll -= ANTE + BLIND;
+  savePersistedStats(game);
 
   return {
     deck,
@@ -102,6 +148,7 @@ function playerAct(game, action) {
 
   game.stats.decisions += 1;
   if (feedback.correct) game.stats.correct += 1;
+  savePersistedStats(game);
   game.lastFeedback = {
     ...feedback,
     street,
@@ -173,6 +220,7 @@ function placePlay(game, mult) {
   hand.playBet = game.ante * mult;
   hand.raised = true;
   game.bankroll -= hand.playBet;
+  savePersistedStats(game);
 }
 
 /** @param {NonNullable<ReturnType<typeof createGame>['hand']>} hand */
@@ -196,6 +244,7 @@ function finishShowdown(game) {
       net: -(ANTE + BLIND),
       message: "You folded. Ante and Blind are lost (−$20).",
     };
+    savePersistedStats(game);
     return;
   }
 
@@ -224,6 +273,7 @@ function finishShowdown(game) {
   // So credit = alreadyPaid + dollarNet
   const credit = alreadyPaid + dollarNet;
   game.bankroll += credit;
+  savePersistedStats(game);
 
   let resultText;
   if (winner === "tie") resultText = "Push — hands tie.";
