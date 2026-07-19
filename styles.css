@@ -74,6 +74,13 @@ body {
   margin-bottom: 0.35rem;
 }
 
+.stats-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
 .stats {
   display: flex;
   gap: 1.25rem;
@@ -96,6 +103,27 @@ body {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.reset-stats-link {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: rgba(243, 234, 215, 0.45);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+
+.reset-stats-link:hover,
+.reset-stats-link:focus-visible {
+  color: rgba(240, 208, 120, 0.75);
+  outline: none;
 }
 
 .table {

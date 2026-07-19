@@ -377,6 +377,13 @@
       dealNewHand();
       return;
     }
+    if (t.closest("#btn-reset-stats")) {
+      ev.preventDefault();
+      if (!confirm("Reset bankroll, accuracy, and hands?")) return;
+      gameApi.resetPersistedStats(game);
+      updateStats();
+      return;
+    }
     if (t.closest("#btn-ev-details")) {
       ev.preventDefault();
       openEvDetails();

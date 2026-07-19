@@ -52,15 +52,31 @@ function savePersistedStats(game) {
   }
 }
 
+const DEFAULT_STATS = {
+  bankroll: 1000,
+  handNumber: 0,
+  decisions: 0,
+  correct: 0,
+};
+
+/** @param {ReturnType<typeof createGame>} game */
+function resetPersistedStats(game) {
+  game.bankroll = DEFAULT_STATS.bankroll;
+  game.handNumber = DEFAULT_STATS.handNumber;
+  game.stats.decisions = DEFAULT_STATS.decisions;
+  game.stats.correct = DEFAULT_STATS.correct;
+  savePersistedStats(game);
+}
+
 function createGame() {
   const saved = loadPersistedStats();
   return {
-    bankroll: saved ? saved.bankroll : 1000,
+    bankroll: saved ? saved.bankroll : DEFAULT_STATS.bankroll,
     ante: ANTE,
-    handNumber: saved ? saved.handNumber : 0,
+    handNumber: saved ? saved.handNumber : DEFAULT_STATS.handNumber,
     stats: {
-      decisions: saved ? saved.decisions : 0,
-      correct: saved ? saved.correct : 0,
+      decisions: saved ? saved.decisions : DEFAULT_STATS.decisions,
+      correct: saved ? saved.correct : DEFAULT_STATS.correct,
     },
     /** @type {ReturnType<typeof newHand>|null} */
     hand: null,
@@ -309,6 +325,7 @@ window.UTHGame = {
   playerAct,
   continueAfterFeedback,
   remainingForPlayer,
+  resetPersistedStats,
   ANTE,
   BLIND,
   actionLabel,
