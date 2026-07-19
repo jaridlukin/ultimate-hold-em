@@ -320,6 +320,11 @@ body {
   min-width: 0;
 }
 
+#section-instructions {
+  display: flex;
+  align-items: center;
+}
+
 .panel-section:last-child {
   border-right: none;
 }
