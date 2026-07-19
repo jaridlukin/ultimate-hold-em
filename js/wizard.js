@@ -275,6 +275,39 @@ function countWizardOuts(hole, board, remaining, playerHand, made) {
   return { count: outIds.size, breakdown };
 }
 
+/** Chart / hole-key style: T for ten (matches strategy.holeKey). */
+function chartRankLabel(rank) {
+  return RANK_LABELS[rank] === "10" ? "T" : RANK_LABELS[rank];
+}
+
+/**
+ * @param {number} hiRank
+ * @param {number} loRank
+ * @param {boolean} suited
+ */
+function chartHandLabel(hiRank, loRank, suited) {
+  return `${chartRankLabel(hiRank)}${chartRankLabel(loRank)}${suited ? "s" : "o"}`;
+}
+
+/**
+ * Minimum kicker for a 4× raise in this high-card class, or null if the class
+ * is never raised (T-high and below).
+ * @param {number} hiRank
+ * @param {boolean} suited
+ * @returns {number | null}
+ */
+function wizardPreflopRaiseFloor(hiRank, suited) {
+  if (suited) {
+    if (hiRank === 12) return 6; // Q6s+
+    if (hiRank === 11) return 8; // J8s+
+    return null;
+  }
+  if (hiRank === 13) return 5; // K5o+
+  if (hiRank === 12) return 8; // Q8o+
+  if (hiRank === 11) return 10; // JTo only
+  return null;
+}
+
 /**
  * @param {import('./cards.js').Card[]} hole
  * @returns {WizardAdvice}
@@ -327,8 +360,13 @@ function wizardPreflop(hole) {
     }
   }
 
-  const label = `${RANK_LABELS[hi.rank]}${RANK_LABELS[lo.rank]}${suited ? "s" : "o"}`;
-  reasons.push(`${label} is outside the Wizard 4× chart — check.`);
+  // Below chart: cite the raise cutoff for this high-card class (or the chart floor).
+  const floorLo = wizardPreflopRaiseFloor(hi.rank, suited);
+  const cutoff =
+    floorLo != null
+      ? chartHandLabel(hi.rank, floorLo, suited)
+      : chartHandLabel(11, suited ? 8 : 10, suited); // J8s / JTo
+  reasons.push(`Below ${cutoff} — check.`);
   return { action: "check", reasons };
 }
 
