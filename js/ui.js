@@ -53,6 +53,7 @@
     results: document.getElementById("results-body"),
     sectionEvaluation: document.getElementById("section-evaluation"),
     sectionResults: document.getElementById("section-results"),
+    mobileVerdict: document.getElementById("mobile-verdict"),
     evModal: document.getElementById("ev-modal"),
     evModalList: document.getElementById("ev-modal-list"),
   };
@@ -270,17 +271,32 @@
     return { label: "Push", cls: "result-banner--push" };
   }
 
+  function syncMobileVerdict(banner) {
+    if (!els.mobileVerdict) return;
+    if (!banner) {
+      els.mobileVerdict.hidden = true;
+      els.mobileVerdict.textContent = "";
+      els.mobileVerdict.className = "mobile-verdict";
+      return;
+    }
+    els.mobileVerdict.hidden = false;
+    els.mobileVerdict.textContent = banner.label;
+    els.mobileVerdict.className = "mobile-verdict " + banner.cls;
+  }
+
   function renderResults() {
     const sd = game.showdown;
     els.sectionResults.classList.toggle("is-active", !!sd);
 
     if (!sd) {
+      syncMobileVerdict(null);
       els.results.innerHTML =
         '<p class="panel-placeholder">Showdown results will appear here when the hand ends.</p>';
       return;
     }
 
     const banner = resultBanner(sd);
+    syncMobileVerdict(banner);
     const bannerHtml =
       '<p class="result-banner ' +
       banner.cls +
