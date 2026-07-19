@@ -37,6 +37,8 @@ body {
 }
 
 .app {
+  display: flex;
+  flex-direction: column;
   max-width: 1100px;
   margin: 0 auto;
   padding: 1.25rem 1rem 2.5rem;
@@ -296,6 +298,8 @@ body {
 @media (max-width: 800px) {
   .info-panel {
     grid-template-columns: 1fr;
+    order: 2;
+    margin: 0;
   }
 
   .panel-section {
@@ -305,6 +309,20 @@ body {
 
   .panel-section:last-child {
     border-bottom: none;
+  }
+
+  .topbar {
+    order: 0;
+    margin-bottom: 0.75rem;
+  }
+
+  .table {
+    order: 1;
+    margin-bottom: 0.85rem;
+  }
+
+  .footer-note {
+    order: 3;
   }
 }
 
@@ -566,6 +584,57 @@ body.ev-modal-open {
   margin-bottom: 0;
 }
 
+.result-banner {
+  display: block;
+  text-align: center;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: clamp(1.45rem, 4.5vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  margin: 0 0 0.75rem;
+  line-height: 1.15;
+}
+
+.result-banner--win {
+  background: rgba(45, 138, 92, 0.38);
+  color: #9de0b8;
+  border: 1px solid rgba(125, 206, 160, 0.65);
+  box-shadow: inset 0 0 24px rgba(45, 138, 92, 0.25);
+}
+
+.result-banner--loss {
+  background: rgba(196, 69, 54, 0.38);
+  color: #ffb4ab;
+  border: 1px solid rgba(245, 168, 158, 0.55);
+  box-shadow: inset 0 0 24px rgba(196, 69, 54, 0.22);
+}
+
+.result-banner--push {
+  background: rgba(212, 168, 67, 0.22);
+  color: var(--gold-bright);
+  border: 1px solid rgba(212, 168, 67, 0.5);
+  box-shadow: inset 0 0 20px rgba(212, 168, 67, 0.12);
+}
+
+.result-banner--fold {
+  background: rgba(243, 234, 215, 0.1);
+  color: rgba(243, 234, 215, 0.85);
+  border: 1px solid rgba(243, 234, 215, 0.28);
+}
+
+.result-net {
+  font-size: 1.05rem;
+}
+
+.result-net strong {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.15rem;
+  color: var(--gold-bright);
+}
+
 .footer-note {
   margin-top: 1.25rem;
   font-size: 0.8rem;
@@ -580,28 +649,121 @@ body.ev-modal-open {
 
 @media (max-width: 640px) {
   :root {
-    --card-w: 54px;
-    --card-h: 76px;
+    --card-w: 46px;
+    --card-h: 64px;
+  }
+
+  .app {
+    padding: 0.75rem 0.65rem 1.5rem;
+  }
+
+  .topbar {
+    gap: 0.65rem;
+    margin-bottom: 0.55rem;
+  }
+
+  .brand {
+    font-size: clamp(1.35rem, 5.5vw, 1.75rem);
+  }
+
+  .brand span {
+    font-size: 0.62rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .stats {
+    gap: 0.85rem;
+  }
+
+  .stats strong {
+    font-size: 1.05rem;
   }
 
   .table {
-    border-radius: 28px;
-    padding: 1.5rem 0.75rem;
+    border-radius: 22px;
+    border-width: 7px;
+    padding: 0.85rem 0.5rem 0.75rem;
+    min-height: 0;
+    box-shadow:
+      inset 0 0 36px rgba(0, 0, 0, 0.3),
+      0 12px 28px rgba(0, 0, 0, 0.4);
   }
 
   .table::before {
-    border-radius: 20px;
+    inset: 8px;
+    border-radius: 16px;
   }
 
   .rail-label {
     display: none;
   }
 
+  .seat {
+    gap: 0.3rem;
+  }
+
+  .seat.dealer {
+    margin-bottom: 0.55rem;
+  }
+
+  .seat.player {
+    margin-top: 0.45rem;
+  }
+
+  .board-row {
+    gap: 0.28rem;
+    margin: 0.2rem 0 0.35rem;
+  }
+
+  .hand-row {
+    gap: 0.28rem;
+  }
+
+  .card {
+    border-radius: 6px;
+    padding: 0.22rem 0.28rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+
   .card .rank {
-    font-size: 0.95rem;
+    font-size: 0.82rem;
   }
 
   .card .suit {
-    font-size: 1.15rem;
+    font-size: 1rem;
+  }
+
+  .card.back {
+    border-width: 2px;
+  }
+
+  .bets {
+    gap: 0.4rem;
+    margin-top: 0.25rem;
+  }
+
+  .chip {
+    min-width: 58px;
+    padding: 0.28rem 0.4rem;
+    font-size: 0.68rem;
+  }
+
+  .chip strong {
+    font-size: 0.88rem;
+  }
+
+  .hand-name {
+    font-size: 0.75rem;
+    min-height: 1em;
+  }
+
+  .panel-section {
+    padding: 0.75rem 0.9rem 0.85rem;
+  }
+
+  .result-banner {
+    font-size: 1.55rem;
+    padding: 0.75rem 0.65rem;
+    margin-bottom: 0.65rem;
   }
 }

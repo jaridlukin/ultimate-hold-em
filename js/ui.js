@@ -257,6 +257,19 @@
     document.body.classList.remove("ev-modal-open");
   }
 
+  function resultBanner(sd) {
+    if (sd.folded) {
+      return { label: "Fold", cls: "result-banner--fold" };
+    }
+    if (sd.winner === "player") {
+      return { label: "Win", cls: "result-banner--win" };
+    }
+    if (sd.winner === "dealer") {
+      return { label: "Loss", cls: "result-banner--loss" };
+    }
+    return { label: "Push", cls: "result-banner--push" };
+  }
+
   function renderResults() {
     const sd = game.showdown;
     els.sectionResults.classList.toggle("is-active", !!sd);
@@ -267,11 +280,20 @@
       return;
     }
 
+    const banner = resultBanner(sd);
+    const bannerHtml =
+      '<p class="result-banner ' +
+      banner.cls +
+      '" role="status">' +
+      escapeHtml(banner.label) +
+      "</p>";
+
     if (sd.folded) {
       els.results.innerHTML =
+        bannerHtml +
         "<p>" +
         escapeHtml(sd.message) +
-        "</p><p>Net this hand: <strong>" +
+        '</p><p class="result-net">Net this hand: <strong>' +
         money(sd.net) +
         "</strong></p>";
       return;
@@ -285,6 +307,7 @@
           : "";
 
     els.results.innerHTML =
+      bannerHtml +
       "<p>" +
       escapeHtml(sd.resultText) +
       "</p>" +
@@ -301,7 +324,7 @@
       sd.playMult * game.ante +
       ")</p>" +
       blindLine +
-      "<p>Net this hand: <strong>" +
+      '<p class="result-net">Net this hand: <strong>' +
       money(sd.dollarNet) +
       "</strong></p>";
   }
