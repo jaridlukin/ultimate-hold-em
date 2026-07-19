@@ -76,9 +76,10 @@ body {
 
 .stats-block {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: flex-end;
-  gap: 0.35rem;
+  justify-content: flex-end;
+  gap: 0.35rem 0.85rem;
 }
 
 .stats {
@@ -682,6 +683,10 @@ body.ev-modal-open {
 
   .stats {
     gap: 0.85rem;
+  }
+
+  .stats-block {
+    gap: 0.25rem 0.65rem;
   }
 
   .stats strong {
