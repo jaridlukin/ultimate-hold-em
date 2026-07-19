@@ -63,9 +63,68 @@ function flushDrawInfo(hole, board) {
 }
 
 /**
- * Simplified Wizard outs: remaining cards that often produce a dealer win.
- * For a shared board pair, count (1) higher board-pair ranks, (2) remaining trips
- * to the board pair, (3) ranks that outkick the player's hole-card kicker.
+ * True if rank set contains any 5-card straight (incl. wheel).
+ * @param {Set<number>} rankSet
+ */
+function ranksContainStraight(rankSet) {
+  for (let high = 14; high >= 6; high--) {
+    let ok = true;
+    for (let d = 0; d < 5; d++) {
+      if (!rankSet.has(high - d)) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return true;
+  }
+  return (
+    rankSet.has(14) &&
+    rankSet.has(5) &&
+    rankSet.has(4) &&
+    rankSet.has(3) &&
+    rankSet.has(2)
+  );
+}
+
+/**
+ * Ranks that complete a straight when added to the board (4-to-a-straight).
+ * @param {import('./cards.js').Card[]} board
+ * @returns {number[]}
+ */
+function boardStraightCompletingRanks(board) {
+  const unique = new Set(board.map((c) => c.rank));
+  if (ranksContainStraight(unique)) return [];
+  /** @type {number[]} */
+  const completing = [];
+  for (let r = 2; r <= 14; r++) {
+    if (unique.has(r)) continue;
+    const withRank = new Set(unique);
+    withRank.add(r);
+    if (ranksContainStraight(withRank)) completing.push(r);
+  }
+  return completing;
+}
+
+/**
+ * Suit of a 4-flush on the board, or null.
+ * @param {import('./cards.js').Card[]} board
+ * @returns {string | null}
+ */
+function boardFourFlushSuit(board) {
+  /** @type {Record<string, number>} */
+  const bySuit = { c: 0, d: 0, h: 0, s: 0 };
+  for (const c of board) bySuit[c.suit]++;
+  for (const suit of ["c", "d", "h", "s"]) {
+    if (bySuit[suit] === 4) return suit;
+  }
+  return null;
+}
+
+/**
+ * Simplified Wizard outs: remaining cards that often produce a dealer win
+ * (dealer outs that beat you — not player draw outs).
+ * Counts pair/outkick threats plus board 4-flush and 4-straight completes,
+ * deduplicated by card id.
  * @param {import('./cards.js').Card[]} hole
  * @param {import('./cards.js').Card[]} board
  * @param {import('./cards.js').Card[]} remaining
@@ -82,26 +141,43 @@ function countWizardOuts(hole, board, remaining, playerHand, made) {
   const playerHigh = Math.max(hole[0].rank, hole[1].rank);
   const boardRankCounts = {};
   for (const c of board) boardRankCounts[c.rank] = (boardRankCounts[c.rank] || 0) + 1;
-  let count = 0;
+
+  /** @type {Set<string>} */
+  const outIds = new Set();
+  /**
+   * @param {import('./cards.js').Card[]} cards
+   * @param {string} line
+   */
+  function addOutCards(cards, line) {
+    let added = 0;
+    for (const c of cards) {
+      if (outIds.has(c.id)) continue;
+      outIds.add(c.id);
+      added++;
+    }
+    if (added > 0) breakdown.push(line.replace(/^(\d+)×/, `${added}×`));
+  }
 
   if (playerHand.category === HAND.HIGH_CARD) {
     for (const [rankStr, cnt] of Object.entries(boardRankCounts)) {
       const rank = Number(rankStr);
       if (cnt >= 2) continue;
-      const available = remaining.filter((c) => c.rank === rank).length;
-      if (available > 0) {
-        count += available;
-        breakdown.push(
-          `${available}× ${RANK_LABELS[rank]} pair the board and beat your high card.`
+      const cards = remaining.filter((c) => c.rank === rank);
+      if (cards.length > 0) {
+        addOutCards(
+          cards,
+          `${cards.length}× ${RANK_LABELS[rank]} pair the board and beat your high card.`
         );
       }
     }
     for (let r = playerHigh + 1; r <= 14; r++) {
       if (boardRankCounts[r]) continue;
-      const available = remaining.filter((c) => c.rank === r).length;
-      if (available) {
-        count += available;
-        breakdown.push(`${available}× ${RANK_LABELS[r]} outkick your ${RANK_LABELS[playerHigh]}.`);
+      const cards = remaining.filter((c) => c.rank === r);
+      if (cards.length) {
+        addOutCards(
+          cards,
+          `${cards.length}× ${RANK_LABELS[r]} outkick your ${RANK_LABELS[playerHigh]}.`
+        );
       }
     }
   } else if (playerHand.category === HAND.PAIR) {
@@ -113,28 +189,27 @@ function countWizardOuts(hole, board, remaining, playerHand, made) {
       // (or trips), which beats one pair. Also count outkickers vs your hole kicker.
       for (const [rankStr, cnt] of Object.entries(boardRankCounts)) {
         const rank = Number(rankStr);
-        const available = remaining.filter((c) => c.rank === rank).length;
-        if (available === 0) continue;
-        count += available;
+        const cards = remaining.filter((c) => c.rank === rank);
+        if (cards.length === 0) continue;
+        let line;
         if (rank === pairRank) {
-          breakdown.push(`${available}× ${RANK_LABELS[rank]} make trips.`);
+          line = `${cards.length}× ${RANK_LABELS[rank]} make trips.`;
         } else if (cnt >= 2) {
-          breakdown.push(`${available}× ${RANK_LABELS[rank]} make a full house or better.`);
+          line = `${cards.length}× ${RANK_LABELS[rank]} make a full house or better.`;
         } else {
-          breakdown.push(
-            `${available}× ${RANK_LABELS[rank]} make two pair (${RANK_LABELS[rank]}s and ${RANK_LABELS[pairRank]}s).`
-          );
+          line = `${cards.length}× ${RANK_LABELS[rank]} make two pair (${RANK_LABELS[rank]}s and ${RANK_LABELS[pairRank]}s).`;
         }
+        addOutCards(cards, line);
       }
 
       const holeKicker = playerHigh;
       for (let r = holeKicker + 1; r <= 14; r++) {
         if (boardRankCounts[r] || r === pairRank) continue;
-        const available = remaining.filter((c) => c.rank === r).length;
-        if (available > 0) {
-          count += available;
-          breakdown.push(
-            `${available}× ${RANK_LABELS[r]} outkick your ${RANK_LABELS[holeKicker]} (same board pair).`
+        const cards = remaining.filter((c) => c.rank === r);
+        if (cards.length > 0) {
+          addOutCards(
+            cards,
+            `${cards.length}× ${RANK_LABELS[r]} outkick your ${RANK_LABELS[holeKicker]} (same board pair).`
           );
         }
       }
@@ -143,25 +218,28 @@ function countWizardOuts(hole, board, remaining, playerHand, made) {
       for (const [rankStr, cnt] of Object.entries(boardRankCounts)) {
         const rank = Number(rankStr);
         if (cnt === 1 && rank > pairRank) {
-          const available = remaining.filter((c) => c.rank === rank).length;
-          if (available > 0) {
-            count += available;
-            breakdown.push(`${available}× ${RANK_LABELS[rank]} make a higher pair.`);
+          const cards = remaining.filter((c) => c.rank === rank);
+          if (cards.length > 0) {
+            addOutCards(cards, `${cards.length}× ${RANK_LABELS[rank]} make a higher pair.`);
           }
         }
       }
-      const tripOuts = remaining.filter((c) => c.rank === pairRank).length;
-      if (tripOuts > 0) {
-        count += tripOuts;
-        breakdown.push(`${tripOuts}× ${RANK_LABELS[pairRank]} make trips (set over set / quads).`);
+      const tripCards = remaining.filter((c) => c.rank === pairRank);
+      if (tripCards.length > 0) {
+        addOutCards(
+          tripCards,
+          `${tripCards.length}× ${RANK_LABELS[pairRank]} make trips (set over set / quads).`
+        );
       }
       const kicker = playerHand.ranks[1] || playerHigh;
       for (let r = kicker + 1; r <= 14; r++) {
         if (boardRankCounts[r] || r === pairRank) continue;
-        const available = remaining.filter((c) => c.rank === r).length;
-        if (available > 0) {
-          count += available;
-          breakdown.push(`${available}× ${RANK_LABELS[r]} outkick your ${RANK_LABELS[kicker]}.`);
+        const cards = remaining.filter((c) => c.rank === r);
+        if (cards.length > 0) {
+          addOutCards(
+            cards,
+            `${cards.length}× ${RANK_LABELS[r]} outkick your ${RANK_LABELS[kicker]}.`
+          );
         }
       }
     }
@@ -169,7 +247,32 @@ function countWizardOuts(hole, board, remaining, playerHand, made) {
     breakdown.push("Hand category uses EV comparison rather than the simple outs chart.");
   }
 
-  return { count, breakdown };
+  // Board 4-flush: remaining suit cards complete a flush that beats high card / one pair.
+  const flushSuit = boardFourFlushSuit(board);
+  if (flushSuit) {
+    const flushCards = remaining.filter((c) => c.suit === flushSuit);
+    if (flushCards.length > 0) {
+      addOutCards(
+        flushCards,
+        `${flushCards.length}× ${SUIT_NAMES[flushSuit]} complete the board 4-flush.`
+      );
+    }
+  }
+
+  // Board 4-straight (open-ended, gutshot, or double-inside): completing ranks.
+  const straightRanks = boardStraightCompletingRanks(board);
+  if (straightRanks.length > 0) {
+    const straightCards = remaining.filter((c) => straightRanks.includes(c.rank));
+    if (straightCards.length > 0) {
+      const labels = straightRanks.map((r) => RANK_LABELS[r]).join("/");
+      addOutCards(
+        straightCards,
+        `${straightCards.length}× ${labels} complete the board 4-straight.`
+      );
+    }
+  }
+
+  return { count: outIds.size, breakdown };
 }
 
 /**
@@ -320,5 +423,8 @@ window.UTHWizard = {
   wizardPreflop,
   wizardFlop,
   wizardRiver,
+  countWizardOuts,
+  boardStraightCompletingRanks,
+  boardFourFlushSuit,
 };
 })();
