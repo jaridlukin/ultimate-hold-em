@@ -291,9 +291,15 @@
     }
   }
 
-  function emailConfigReady() {
+  function shareApiBase() {
     const cfg = window.UTHEmailConfig || {};
-    return !!(cfg.serviceId && cfg.templateId && cfg.publicKey);
+    if (cfg.apiUrl && String(cfg.apiUrl).trim()) {
+      return String(cfg.apiUrl).trim().replace(/\/$/, "");
+    }
+    if (location.protocol === "http:" || location.protocol === "https:") {
+      return location.origin;
+    }
+    return "";
   }
 
   function openShareModal() {
@@ -388,42 +394,52 @@
     }
 
     const subject = "Ultimate Texas Hold'em — Hand #" + game.handNumber;
+    const base = shareApiBase();
 
-    if (!emailConfigReady()) {
+    if (!base) {
       openMailtoShare(raw, subject, message);
       return;
     }
 
-    if (!window.emailjs || typeof window.emailjs.send !== "function") {
-      setShareError("EmailJS library failed to load. Check your network, or use Copy text.");
-      return;
-    }
-
-    const cfg = window.UTHEmailConfig;
     const sendBtn = document.getElementById("btn-share-send");
     if (sendBtn) sendBtn.disabled = true;
     setShareStatus("Sending…");
 
-    try {
-      if (typeof window.emailjs.init === "function") {
-        window.emailjs.init({ publicKey: cfg.publicKey });
-      }
-    } catch (_) {
-      /* init may already have run */
-    }
-
-    window.emailjs
-      .send(cfg.serviceId, cfg.templateId, {
-        to_email: raw,
-        subject: subject,
-        message: message,
+    fetch(base + "/api/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to: raw, subject: subject, message: message }),
+    })
+      .then(function (res) {
+        return res.json().then(
+          function (data) {
+            return { res: res, data: data };
+          },
+          function () {
+            return { res: res, data: null };
+          }
+        );
       })
-      .then(function () {
-        setShareStatus("Sent.");
+      .then(function (result) {
+        const res = result.res;
+        const data = result.data;
+        if (res.ok && data && data.ok) {
+          setShareStatus("Sent.");
+          return;
+        }
+        // Static hosts (e.g. GitHub Pages) have no /api — fall back to mailto.
+        if (res.status === 404 || res.status === 405) {
+          openMailtoShare(raw, subject, message);
+          return;
+        }
+        const errMsg =
+          (data && data.error) ||
+          "Failed to send. Try Copy text, or check config.txt / serve.py (see SHARE_EMAIL.md).";
+        setShareStatus(errMsg, true);
       })
       .catch(function (err) {
         console.error(err);
-        setShareStatus("Failed to send. Try Copy text, or check EmailJS setup.", true);
+        openMailtoShare(raw, subject, message);
       })
       .finally(function () {
         if (sendBtn) sendBtn.disabled = false;
