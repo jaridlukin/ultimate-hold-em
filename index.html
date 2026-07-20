@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=12" />
+    <link rel="stylesheet" href="styles.css?v=13" />
   </head>
   <body>
     <div class="app">
@@ -108,12 +108,49 @@
       </div>
     </div>
 
+    <div class="ev-modal" id="share-modal" hidden>
+      <div class="ev-modal-backdrop" data-share-close tabindex="-1"></div>
+      <div
+        class="ev-modal-dialog share-modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="share-modal-title"
+      >
+        <div class="ev-modal-header">
+          <h2 id="share-modal-title">Share hand</h2>
+          <button type="button" class="ev-modal-close" data-share-close aria-label="Close">
+            ×
+          </button>
+        </div>
+        <div class="ev-modal-body">
+          <label class="share-label" for="share-email">Recipient email</label>
+          <input
+            type="email"
+            id="share-email"
+            class="share-email-input"
+            autocomplete="email"
+            placeholder="name@example.com"
+            spellcheck="false"
+          />
+          <p class="share-error" id="share-error" hidden role="alert"></p>
+          <p class="share-status" id="share-status" hidden role="status"></p>
+          <div class="share-actions">
+            <button type="button" class="btn-raise" id="btn-share-send">Send</button>
+            <button type="button" class="btn-check" id="btn-share-copy">Copy text</button>
+            <button type="button" class="btn-ghost" data-share-close>Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="js/email-config.js?v=1"></script>
     <script src="js/cards.js?v=7"></script>
     <script src="js/hand.js?v=7"></script>
     <script src="js/preflop-ev.js?v=7"></script>
     <script src="js/wizard.js?v=9"></script>
     <script src="js/strategy.js?v=7"></script>
-    <script src="js/game.js?v=9"></script>
-    <script src="js/ui.js?v=10"></script>
+    <script src="js/game.js?v=10"></script>
+    <script src="js/ui.js?v=11"></script>
   </body>
 </html>

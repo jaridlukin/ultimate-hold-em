@@ -111,6 +111,8 @@ function newHand(game) {
     folded: false,
     raised: false,
     street: "preflop",
+    /** @type {{ street: string, playerAction: string, actionLabel: string, correct: boolean, correctLabel: string, briefEv: string, briefWizard: string, wizardLabel: string }[]} */
+    history: [],
   };
 }
 
@@ -165,13 +167,26 @@ function playerAct(game, action) {
   game.stats.decisions += 1;
   if (feedback.correct) game.stats.correct += 1;
   savePersistedStats(game);
+  const actionLbl = actionLabel(action);
+  const correctLbl = actionLabel(feedback.correctAction);
+  const wizardLbl = actionLabel(feedback.wizardAction);
   game.lastFeedback = {
     ...feedback,
     street,
-    actionLabel: actionLabel(action),
-    correctLabel: actionLabel(feedback.correctAction),
-    wizardLabel: actionLabel(feedback.wizardAction),
+    actionLabel: actionLbl,
+    correctLabel: correctLbl,
+    wizardLabel: wizardLbl,
   };
+  hand.history.push({
+    street,
+    playerAction: action,
+    actionLabel: actionLbl,
+    correct: feedback.correct,
+    correctLabel: correctLbl,
+    briefEv: feedback.briefEv,
+    briefWizard: feedback.briefWizard,
+    wizardLabel: wizardLbl,
+  });
   hand._pendingAction = action;
   continueAfterFeedback(game);
 }
@@ -319,6 +334,75 @@ function finishShowdown(game) {
   };
 }
 
+/**
+ * Plain-text summary of the completed hand for sharing.
+ * @param {ReturnType<typeof createGame>} game
+ * @returns {string}
+ */
+function buildHandShareSummary(game) {
+  const hand = game.hand;
+  const sd = game.showdown;
+  if (!hand || !sd) return "";
+
+  const cards = function (arr) {
+    return arr.map(cardLabel).join(" ");
+  };
+
+  const lines = [];
+  lines.push("Ultimate Texas Hold'em — Hand #" + game.handNumber);
+  lines.push("");
+  lines.push("CARDS");
+  lines.push("Player: " + cards(hand.playerHole));
+  lines.push("Dealer: " + cards(hand.dealerHole));
+  lines.push("Board:  " + cards(hand.fullBoard));
+  lines.push("");
+
+  const history = hand.history || [];
+  if (history.length) {
+    lines.push("ACTIONS");
+    for (var i = 0; i < history.length; i++) {
+      const h = history[i];
+      const streetName = h.street.charAt(0).toUpperCase() + h.street.slice(1);
+      const verdict = h.correct ? "Correct" : "Wrong (best: " + h.correctLabel + ")";
+      lines.push(streetName + ": " + h.actionLabel + " — " + verdict);
+      if (h.briefEv) lines.push("  EV: " + h.briefEv);
+      if (h.briefWizard) lines.push("  Wizard: " + h.briefWizard);
+    }
+    lines.push("");
+  }
+
+  lines.push("RESULT");
+  if (sd.folded) {
+    lines.push("Fold");
+    lines.push("Net: " + formatNet(sd.net));
+    if (sd.message) lines.push(sd.message);
+  } else {
+    const outcome =
+      sd.winner === "player" ? "Win" : sd.winner === "dealer" ? "Loss" : "Push";
+    lines.push(outcome);
+    lines.push("Net: " + formatNet(sd.dollarNet));
+    if (sd.resultText) lines.push(sd.resultText);
+    if (sd.playMult) lines.push("Play bet: " + sd.playMult + "× ante");
+    if (sd.playerHand && sd.playerHand.name) {
+      lines.push("Your hand: " + sd.playerHand.name);
+    }
+    if (sd.dealerHand && sd.dealerHand.name) {
+      lines.push("Dealer hand: " + sd.dealerHand.name);
+    }
+  }
+
+  lines.push("");
+  lines.push("(Shared from Ultimate Texas Hold'em Strategy Trainer)");
+  return lines.join("\n");
+}
+
+/** @param {number} n */
+function formatNet(n) {
+  if (!Number.isFinite(n)) return "—";
+  const sign = n > 0 ? "+" : n < 0 ? "−" : "";
+  return sign + "$" + Math.abs(n).toFixed(0);
+}
+
 window.UTHGame = {
   createGame,
   startHand,
@@ -326,6 +410,7 @@ window.UTHGame = {
   continueAfterFeedback,
   remainingForPlayer,
   resetPersistedStats,
+  buildHandShareSummary,
   ANTE,
   BLIND,
   actionLabel,

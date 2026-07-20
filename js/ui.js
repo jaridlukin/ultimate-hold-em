@@ -34,6 +34,9 @@
   const { bestHand } = window.UTHHand;
   const { actionLabel } = window.UTHEv;
 
+  const EMAIL_RE =
+    /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
   const game = gameApi.createGame();
 
   const els = {
@@ -54,6 +57,10 @@
     mobileVerdict: document.getElementById("mobile-verdict"),
     evModal: document.getElementById("ev-modal"),
     evModalList: document.getElementById("ev-modal-list"),
+    shareModal: document.getElementById("share-modal"),
+    shareEmail: document.getElementById("share-email"),
+    shareError: document.getElementById("share-error"),
+    shareStatus: document.getElementById("share-status"),
   };
 
   function money(n) {
@@ -182,6 +189,7 @@
     dealing = true;
     try {
       closeEvDetails();
+      closeShareModal();
       gameApi.startHand(game);
       render();
     } catch (err) {
@@ -239,6 +247,7 @@
   function openEvDetails() {
     const fb = game.lastFeedback;
     if (!fb || !els.evModal || !els.evModalList) return;
+    closeShareModal();
     els.evModalList.innerHTML = (fb.detailLines || [])
       .map(function (line) {
         return "<li>" + escapeHtml(line) + "</li>";
@@ -253,7 +262,161 @@
   function closeEvDetails() {
     if (!els.evModal || els.evModal.hidden) return;
     els.evModal.hidden = true;
-    document.body.classList.remove("ev-modal-open");
+    if (!els.shareModal || els.shareModal.hidden) {
+      document.body.classList.remove("ev-modal-open");
+    }
+  }
+
+  function setShareError(msg) {
+    if (!els.shareError) return;
+    if (msg) {
+      els.shareError.hidden = false;
+      els.shareError.textContent = msg;
+    } else {
+      els.shareError.hidden = true;
+      els.shareError.textContent = "";
+    }
+  }
+
+  function setShareStatus(msg, isError) {
+    if (!els.shareStatus) return;
+    if (msg) {
+      els.shareStatus.hidden = false;
+      els.shareStatus.textContent = msg;
+      els.shareStatus.classList.toggle("is-error", !!isError);
+    } else {
+      els.shareStatus.hidden = true;
+      els.shareStatus.textContent = "";
+      els.shareStatus.classList.remove("is-error");
+    }
+  }
+
+  function emailConfigReady() {
+    const cfg = window.UTHEmailConfig || {};
+    return !!(cfg.serviceId && cfg.templateId && cfg.publicKey);
+  }
+
+  function openShareModal() {
+    if (!els.shareModal || game.phase !== "showdown") return;
+    closeEvDetails();
+    setShareError("");
+    setShareStatus("");
+    if (els.shareEmail) els.shareEmail.value = "";
+    els.shareModal.hidden = false;
+    document.body.classList.add("ev-modal-open");
+    if (els.shareEmail) els.shareEmail.focus();
+  }
+
+  function closeShareModal() {
+    if (!els.shareModal || els.shareModal.hidden) return;
+    els.shareModal.hidden = true;
+    if (!els.evModal || els.evModal.hidden) {
+      document.body.classList.remove("ev-modal-open");
+    }
+  }
+
+  function currentShareSummary() {
+    return gameApi.buildHandShareSummary(game);
+  }
+
+  function copyShareSummary() {
+    const text = currentShareSummary();
+    if (!text) {
+      setShareError("No hand summary available.");
+      return;
+    }
+    setShareError("");
+    function done() {
+      setShareStatus("Copied to clipboard.");
+    }
+    function fail() {
+      setShareStatus("Could not copy — select and copy manually.", true);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(fail);
+      return;
+    }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      if (ok) done();
+      else fail();
+    } catch (_) {
+      fail();
+    }
+  }
+
+  function sendShareEmail() {
+    const raw = els.shareEmail ? els.shareEmail.value.trim() : "";
+    setShareError("");
+    setShareStatus("");
+
+    if (!raw) {
+      setShareError("Enter a recipient email.");
+      if (els.shareEmail) els.shareEmail.focus();
+      return;
+    }
+    if (!EMAIL_RE.test(raw)) {
+      setShareError("That email doesn’t look valid.");
+      if (els.shareEmail) els.shareEmail.focus();
+      return;
+    }
+
+    if (!emailConfigReady()) {
+      setShareError(
+        "EmailJS is not configured. Add serviceId, templateId, and publicKey in js/email-config.js (see SHARE_EMAIL.md). You can still use Copy text."
+      );
+      return;
+    }
+
+    if (!window.emailjs || typeof window.emailjs.send !== "function") {
+      setShareError("EmailJS library failed to load. Check your network, or use Copy text.");
+      return;
+    }
+
+    const cfg = window.UTHEmailConfig;
+    const message = currentShareSummary();
+    if (!message) {
+      setShareError("No hand summary available.");
+      return;
+    }
+
+    const subject = "Ultimate Texas Hold'em — Hand #" + game.handNumber;
+    const sendBtn = document.getElementById("btn-share-send");
+    if (sendBtn) sendBtn.disabled = true;
+    setShareStatus("Sending…");
+
+    try {
+      if (typeof window.emailjs.init === "function") {
+        window.emailjs.init({ publicKey: cfg.publicKey });
+      }
+    } catch (_) {
+      /* init may already have run */
+    }
+
+    window.emailjs
+      .send(cfg.serviceId, cfg.templateId, {
+        to_email: raw,
+        subject: subject,
+        message: message,
+      })
+      .then(function () {
+        setShareStatus("Sent.");
+      })
+      .catch(function (err) {
+        console.error(err);
+        setShareStatus("Failed to send. Try Copy text, or check EmailJS setup.", true);
+      })
+      .finally(function () {
+        if (sendBtn) sendBtn.disabled = false;
+      });
   }
 
   function resultBanner(sd) {
@@ -322,6 +485,7 @@
       els.instructions.innerHTML =
         '<div class="actions">' +
         '<button class="btn-primary" id="btn-deal" type="button">Deal next hand</button>' +
+        '<button class="btn-share" id="btn-share" type="button">Share</button>' +
         "</div>";
       return;
     }
@@ -367,7 +531,7 @@
     }
   }
 
-  // Single click path for deal / details (delegation). Avoids lost handlers after innerHTML swaps.
+  // Single click path for deal / details / share (delegation). Avoids lost handlers after innerHTML swaps.
   document.addEventListener("click", function (ev) {
     var t = ev.target;
     if (!t || !t.closest) return;
@@ -375,6 +539,21 @@
     if (dealBtn) {
       ev.preventDefault();
       dealNewHand();
+      return;
+    }
+    if (t.closest("#btn-share")) {
+      ev.preventDefault();
+      openShareModal();
+      return;
+    }
+    if (t.closest("#btn-share-send")) {
+      ev.preventDefault();
+      sendShareEmail();
+      return;
+    }
+    if (t.closest("#btn-share-copy")) {
+      ev.preventDefault();
+      copyShareSummary();
       return;
     }
     if (t.closest("#btn-reset-stats")) {
@@ -389,6 +568,11 @@
       openEvDetails();
       return;
     }
+    if (t.closest("[data-share-close]")) {
+      ev.preventDefault();
+      closeShareModal();
+      return;
+    }
     if (t.closest("[data-ev-close]")) {
       ev.preventDefault();
       closeEvDetails();
@@ -396,8 +580,20 @@
   });
 
   document.addEventListener("keydown", function (ev) {
-    if (ev.key === "Escape") closeEvDetails();
+    if (ev.key === "Escape") {
+      closeShareModal();
+      closeEvDetails();
+    }
   });
+
+  if (els.shareEmail) {
+    els.shareEmail.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        sendShareEmail();
+      }
+    });
+  }
 
   render();
 })();

@@ -599,6 +599,70 @@ body.ev-modal-open {
   margin: 0.35rem 0;
 }
 
+.share-modal-dialog {
+  width: min(420px, 100%);
+  max-height: none;
+}
+
+.share-label {
+  display: block;
+  margin: 0 0 0.4rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--gold-bright);
+}
+
+.share-email-input {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 0.65rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(212, 168, 67, 0.4);
+  border-radius: 8px;
+  background: rgba(4, 14, 10, 0.55);
+  color: var(--cream);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.share-email-input:focus {
+  outline: 2px solid rgba(212, 168, 67, 0.55);
+  outline-offset: 1px;
+}
+
+.share-email-input::placeholder {
+  color: rgba(243, 234, 215, 0.4);
+}
+
+.share-error {
+  margin: 0 0 0.55rem;
+  font-size: 0.85rem;
+  color: #f5a89e;
+}
+
+.share-status {
+  margin: 0 0 0.55rem;
+  font-size: 0.85rem;
+  color: #7dcea0;
+}
+
+.share-status.is-error {
+  color: #f5a89e;
+}
+
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.btn-share {
+  background: rgba(243, 234, 215, 0.12);
+  color: var(--cream);
+  border: 1px solid rgba(212, 168, 67, 0.45);
+}
+
 .mobile-verdict {
   display: none;
 }
