@@ -615,7 +615,7 @@ body.ev-modal-open {
 .share-email-input {
   box-sizing: border-box;
   width: 100%;
-  margin: 0 0 0.65rem;
+  margin: 0 0 0.4rem;
   padding: 0.7rem 0.85rem;
   border: 1px solid rgba(212, 168, 67, 0.4);
   border-radius: 8px;
@@ -623,6 +623,13 @@ body.ev-modal-open {
   color: var(--cream);
   font: inherit;
   font-size: 0.95rem;
+}
+
+.share-hint {
+  margin: 0 0 0.65rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: rgba(243, 234, 215, 0.55);
 }
 
 .share-email-input:focus {

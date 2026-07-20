@@ -353,6 +353,18 @@
     }
   }
 
+  function openMailtoShare(to, subject, body) {
+    const url =
+      "mailto:" +
+      encodeURIComponent(to) +
+      "?subject=" +
+      encodeURIComponent(subject) +
+      "&body=" +
+      encodeURIComponent(body);
+    window.location.href = url;
+    setShareStatus("Opened your email app.");
+  }
+
   function sendShareEmail() {
     const raw = els.shareEmail ? els.shareEmail.value.trim() : "";
     setShareError("");
@@ -369,10 +381,16 @@
       return;
     }
 
+    const message = currentShareSummary();
+    if (!message) {
+      setShareError("No hand summary available.");
+      return;
+    }
+
+    const subject = "Ultimate Texas Hold'em — Hand #" + game.handNumber;
+
     if (!emailConfigReady()) {
-      setShareError(
-        "EmailJS is not configured. Add serviceId, templateId, and publicKey in js/email-config.js (see SHARE_EMAIL.md). You can still use Copy text."
-      );
+      openMailtoShare(raw, subject, message);
       return;
     }
 
@@ -382,13 +400,6 @@
     }
 
     const cfg = window.UTHEmailConfig;
-    const message = currentShareSummary();
-    if (!message) {
-      setShareError("No hand summary available.");
-      return;
-    }
-
-    const subject = "Ultimate Texas Hold'em — Hand #" + game.handNumber;
     const sendBtn = document.getElementById("btn-share-send");
     if (sendBtn) sendBtn.disabled = true;
     setShareStatus("Sending…");

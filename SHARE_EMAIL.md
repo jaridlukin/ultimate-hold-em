@@ -1,39 +1,15 @@
-# Share hand — EmailJS setup
+# Share hand — email
 
-The trainer is a static GitHub Pages app. **Share** sends mail from the browser via [EmailJS](https://www.emailjs.com/) (no backend).
+**Send** works out of the box: it opens your email app via a `mailto:` link with the recipient, subject, and hand summary. No account or secrets required. **Copy text** still copies the summary to the clipboard.
 
-## 1. Create an EmailJS account
+## Optional: EmailJS (silent send)
 
-1. Sign up at [https://www.emailjs.com/](https://www.emailjs.com/).
-2. Add an **Email Service** (Gmail, Outlook, etc.) and note the **Service ID**.
+If you want Send to deliver mail from the browser without opening a mail client, configure [EmailJS](https://www.emailjs.com/):
 
-## 2. Create an email template
-
-Create a template with these template variables:
-
-| Variable    | Use |
-|-------------|-----|
-| `{{to_email}}` | Recipient address (set the template **To** field to `{{to_email}}`) |
-| `{{subject}}`  | Subject line |
-| `{{message}}`  | Plain-text hand summary (body) |
-
-Example body:
-
-```
-{{message}}
-```
-
-Subject in the EmailJS UI can be `{{subject}}` or a fixed title.
-
-**Important:** Under template settings, allow the **To Email** to use `{{to_email}}` so recipients are not limited to your own address. Free plans may restrict this — check EmailJS docs for your plan.
-
-## 3. Get your Public Key
-
-Account → **API Keys** → **Public Key**.
-
-## 4. Configure the app
-
-Edit `js/email-config.js`:
+1. Create an EmailJS account and add an email service (note the **Service ID**).
+2. Create a template with `{{to_email}}`, `{{subject}}`, and `{{message}}`. Set the template **To** field to `{{to_email}}`.
+3. Copy your **Public Key** from Account → API Keys.
+4. Edit `js/email-config.js`:
 
 ```js
 window.UTHEmailConfig = {
@@ -43,13 +19,6 @@ window.UTHEmailConfig = {
 };
 ```
 
-Commit and push so GitHub Pages picks up the change. Cache-bust on `email-config.js` in `index.html` if browsers keep an old empty config.
+When all three fields are non-empty, Send uses EmailJS. Otherwise it uses `mailto:`.
 
-## 5. Test
-
-1. Play a hand to showdown.
-2. Click **Share**.
-3. Enter a valid email and **Send**.
-4. Or use **Copy text** if EmailJS is not configured yet.
-
-If `serviceId`, `templateId`, or `publicKey` is empty, Send shows a message that EmailJS must be configured; Copy text still works.
+Commit and push so GitHub Pages picks up the change. Bump the `email-config.js` cache-bust query in `index.html` if browsers keep an old config.
