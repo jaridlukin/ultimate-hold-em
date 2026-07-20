@@ -625,13 +625,6 @@ body.ev-modal-open {
   font-size: 0.95rem;
 }
 
-.share-hint {
-  margin: 0 0 0.65rem;
-  font-size: 0.8rem;
-  line-height: 1.35;
-  color: rgba(243, 234, 215, 0.55);
-}
-
 .share-email-input:focus {
   outline: 2px solid rgba(212, 168, 67, 0.55);
   outline-offset: 1px;
