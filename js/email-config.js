@@ -1,14 +1,12 @@
 /**
- * Optional share-email API override.
+ * Share-email API base URL (Gmail SMTP via serve.py, same as vegas-hotels).
  *
- * Silent Send uses the same Gmail SMTP backend as vegas-hotels via serve.py
- * (POST /api/send-email). Leave apiUrl empty to call same-origin /api/send-email
- * when you run: python serve.py and open http://127.0.0.1:8765/
- *
- * On GitHub Pages (no backend), Send uses mailto: unless you set apiUrl.
- * Do not use python -m http.server — it has no /api. See SHARE_EMAIL.md.
+ * - Local: leave empty and open http://127.0.0.1:8765/ (python serve.py).
+ * - GitHub Pages: MUST set a public HTTPS URL that runs serve.py /api/send-email
+ *   (Pages cannot do SMTP itself). See SHARE_EMAIL.md.
  */
 window.UTHEmailConfig = {
-  // Example remote backend: "https://your-host.example.com"
-  apiUrl: "",
+  // Public HTTPS share API (Cloudflare tunnel → local serve.py). Restart tunnel
+  // if this URL stops working, then update and redeploy Pages.
+  apiUrl: "https://generates-pmc-senior-sophisticated.trycloudflare.com",
 };

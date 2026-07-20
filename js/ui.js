@@ -388,18 +388,6 @@
     }
   }
 
-  function openMailtoShare(to, subject, body) {
-    const url =
-      "mailto:" +
-      encodeURIComponent(to) +
-      "?subject=" +
-      encodeURIComponent(subject) +
-      "&body=" +
-      encodeURIComponent(body);
-    window.location.href = url;
-    setShareStatus("Opened your email app.");
-  }
-
   function sendShareEmail() {
     const raw = els.shareEmail ? els.shareEmail.value.trim() : "";
     setShareError("");
@@ -423,16 +411,15 @@
     }
 
     const subject = "Ultimate Texas Hold'em — Hand #" + game.handNumber;
+    const cfg = window.UTHEmailConfig || {};
+    const configuredApi = !!(cfg.apiUrl && String(cfg.apiUrl).trim());
     const base = shareApiBase();
 
     if (!base) {
-      if (isStaticShareHost()) {
-        setShareStatus(
-          "Silent Gmail send needs local serve.py. Opening your email app instead (or use http://127.0.0.1:8765/).",
-          false
-        );
-      }
-      openMailtoShare(raw, subject, message);
+      setShareStatus(
+        "Share API not configured for this host. Set apiUrl in js/email-config.js to your HTTPS serve.py URL (see SHARE_EMAIL.md), or open http://127.0.0.1:8765/",
+        true
+      );
       return;
     }
 
@@ -462,24 +449,24 @@
           setShareStatus("Sent.");
           return;
         }
-        // No API on static hosts — fall back to mailto.
-        if (res.status === 404 || res.status === 405) {
-          openMailtoShare(raw, subject, message);
-          return;
-        }
         setShareStatus(formatShareSendError(res, data), true);
       })
       .catch(function (err) {
         console.error(err);
-        if (isStaticShareHost()) {
-          openMailtoShare(raw, subject, message);
+        const detail = err && err.message ? err.message : "network error";
+        if (configuredApi) {
+          setShareStatus(
+            "Could not reach share API (" +
+              detail +
+              "). Is serve.py + the HTTPS tunnel/host in email-config.js still running?",
+            true
+          );
           return;
         }
-        const detail = err && err.message ? err.message : "network error";
         setShareStatus(
           "Could not reach share API (" +
             detail +
-            "). Run python serve.py (not http.server) and open http://127.0.0.1:8765/",
+            "). Run python serve.py and open http://127.0.0.1:8765/",
           true
         );
       })

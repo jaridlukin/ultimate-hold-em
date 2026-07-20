@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import smtplib
 import ssl
@@ -23,8 +24,8 @@ from urllib.parse import urlparse
 
 BASE_DIR = Path(__file__).parent
 CONFIG_PATH = BASE_DIR / "config.txt"
-HOST = "127.0.0.1"
-PORT = 8765
+HOST = os.environ.get("UTH_HOST", "127.0.0.1")
+PORT = int(os.environ.get("PORT") or os.environ.get("UTH_PORT") or "8765")
 
 EMAIL_RE = re.compile(
     r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@"
@@ -41,17 +42,20 @@ log = logging.getLogger("uth-serve")
 
 
 def load_config(path: Path = CONFIG_PATH) -> dict:
-    """Same key: value config format as vegas-hotels."""
+    """Same key: value config format as vegas-hotels. Env vars override file."""
     cfg = {}
-    if not path.is_file():
-        return cfg
-    with path.open(encoding="utf-8") as f:
-        for raw_line in f:
-            line = raw_line.strip()
-            if not line or line.startswith("#") or ":" not in line:
-                continue
-            key, value = [part.strip() for part in line.split(":", 1)]
-            cfg[key.upper()] = value
+    if path.is_file():
+        with path.open(encoding="utf-8") as f:
+            for raw_line in f:
+                line = raw_line.strip()
+                if not line or line.startswith("#") or ":" not in line:
+                    continue
+                key, value = [part.strip() for part in line.split(":", 1)]
+                cfg[key.upper()] = value
+    if os.environ.get("GMAIL_ADDRESS"):
+        cfg["GMAIL_ADDRESS"] = os.environ["GMAIL_ADDRESS"].strip()
+    if os.environ.get("GMAIL_APP_PASSWORD"):
+        cfg["GMAIL_APP_PASSWORD"] = os.environ["GMAIL_APP_PASSWORD"].strip()
     return cfg
 
 

@@ -1,74 +1,53 @@
 # Share hand — email
 
-**Send** delivers a hand summary to the address you enter. **Copy text** always copies the summary to the clipboard.
+**Send** emails a hand summary via **Gmail SMTP** (same pattern as vegas-hotels). **Copy text** copies the summary to the clipboard.
 
-## Important: use `serve.py` on localhost
+## Why GitHub Pages opened the email app
 
-Silent Gmail send only works when the page is served by:
+`https://jaridlukin.github.io/ultimate-hold-em/` is **static**. It cannot run Python or talk to Gmail SMTP directly.
+
+Silent SMTP requires a public **HTTPS** backend that runs `serve.py`’s `POST /api/send-email`. Set that URL in `js/email-config.js` as `apiUrl`.
+
+## Local (same machine)
 
 ```bash
 python serve.py
 ```
 
-Then open **http://127.0.0.1:8765/** (not GitHub Pages, and not `python -m http.server`).
+Open **http://127.0.0.1:8765/** — leave `apiUrl` empty so the page calls same-origin `/api/send-email`.
 
-- `python -m http.server` has **no** `/api/send-email` — Share → Send will fail.
-- **https://jaridlukin.github.io/ultimate-hold-em/** has no SMTP backend. On Pages, Send opens your email app (`mailto:`) instead. For silent Gmail send, use the local URL above.
+## Production (GitHub Pages)
 
-## Default (no setup): mailto
+1. Keep `python serve.py` running (with `config.txt` Gmail credentials).
+2. Expose it on HTTPS (Cloudflare tunnel example):
 
-On GitHub Pages, or anytime the share API is unreachable / not configured as a remote `apiUrl`, Send opens your email app via a `mailto:` link (recipient, subject, and hand summary filled in). No account or secrets required.
-
-## Silent send: Gmail SMTP (same as vegas-hotels)
-
-Vegas Hotels and this trainer use the same Gmail App Password + `smtplib` setup.
-
-### 1. Configure credentials
-
-```text
-# Copy this file to config.txt and fill in your values.
-copy config.example.txt config.txt
+```powershell
+npx --yes cloudflared tunnel --url http://127.0.0.1:8765
 ```
 
-Edit `config.txt`:
+3. Put the printed `https://….trycloudflare.com` URL into `js/email-config.js`:
+
+```js
+window.UTHEmailConfig = {
+  apiUrl: "https://YOUR-TUNNEL.trycloudflare.com",
+};
+```
+
+4. Deploy Pages (commit/push). Share on github.io will POST to that API over HTTPS (no mail app).
+
+**Note:** Quick tunnels die when the process stops or the URL rotates. For a permanent URL, deploy `serve.py` to a small host (Render/Fly/VPS) with env `GMAIL_ADDRESS` / `GMAIL_APP_PASSWORD`, then set `apiUrl` to that host.
+
+## Credentials
+
+```text
+copy config.example.txt config.txt
+```
 
 ```text
 GMAIL_ADDRESS: your-email@gmail.com
 GMAIL_APP_PASSWORD: xxxx xxxx xxxx xxxx
 ```
 
-Gmail App Password (not your normal password):
+Use a [Gmail App Password](https://myaccount.google.com/apppasswords). Never commit `config.txt`.
 
-1. Go to https://myaccount.google.com/apppasswords
-2. Enable 2-Factor Authentication if needed
-3. Create an App Password for "Mail"
-4. Paste the 16-character password into `config.txt`
-
-`config.txt` is gitignored — never commit it.
-
-If you already have a working `config.txt` in vegas-hotels, you can copy those two Gmail lines into this project's `config.txt`.
-
-### 2. Run the local server
-
-```bash
-# Stop any old server on 8765 first (Task Manager or: netstat -ano | findstr 8765)
-python serve.py
-```
-
-Open http://127.0.0.1:8765/ — Share → Send posts to `/api/send-email`, which sends via `smtp.gmail.com:587` (STARTTLS), same as vegas-hotels.
-
-Check status: `GET /api/email-status` → `{ "ok": true, "configured": true, "transport": "gmail-smtp" }`.
-
-If Send fails, the UI now shows the server's error (auth failure, SMTP error, or "API not available"). Fix based on that message.
-
-### Optional: remote API URL
-
-If you host `serve.py` (or an equivalent `/api/send-email` endpoint) elsewhere, set in `js/email-config.js`:
-
-```js
-window.UTHEmailConfig = {
-  apiUrl: "https://your-host.example.com",
-};
-```
-
-Bump the `email-config.js` cache-bust query in `index.html` after changing it.
+Check: `GET /api/email-status` → `{ "configured": true, "transport": "gmail-smtp" }`.
