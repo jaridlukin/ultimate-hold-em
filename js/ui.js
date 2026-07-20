@@ -291,15 +291,44 @@
     }
   }
 
+  function isStaticShareHost() {
+    const host = location.hostname || "";
+    return /\.github\.io$/i.test(host) || /\.pages\.dev$/i.test(host);
+  }
+
   function shareApiBase() {
     const cfg = window.UTHEmailConfig || {};
     if (cfg.apiUrl && String(cfg.apiUrl).trim()) {
       return String(cfg.apiUrl).trim().replace(/\/$/, "");
     }
+    // GitHub Pages / static hosts have no /api/send-email unless apiUrl is set.
+    if (isStaticShareHost()) {
+      return "";
+    }
     if (location.protocol === "http:" || location.protocol === "https:") {
       return location.origin;
     }
     return "";
+  }
+
+  function formatShareSendError(res, data) {
+    const serverErr = data && data.error ? String(data.error) : "";
+    if (serverErr) return serverErr;
+    if (!res) {
+      return "Could not reach share API. Run python serve.py and open http://127.0.0.1:8765/";
+    }
+    if (res.status === 501 || res.status === 404 || res.status === 405) {
+      return (
+        "Share API not available (HTTP " +
+        res.status +
+        "). Stop python -m http.server if running, then: python serve.py — open http://127.0.0.1:8765/ (SMTP does not work on GitHub Pages)."
+      );
+    }
+    return (
+      "Failed to send (HTTP " +
+      res.status +
+      "). Try Copy text, or check config.txt / serve.py (see SHARE_EMAIL.md)."
+    );
   }
 
   function openShareModal() {
@@ -397,6 +426,12 @@
     const base = shareApiBase();
 
     if (!base) {
+      if (isStaticShareHost()) {
+        setShareStatus(
+          "Silent Gmail send needs local serve.py. Opening your email app instead (or use http://127.0.0.1:8765/).",
+          false
+        );
+      }
       openMailtoShare(raw, subject, message);
       return;
     }
@@ -427,19 +462,26 @@
           setShareStatus("Sent.");
           return;
         }
-        // Static hosts (e.g. GitHub Pages) have no /api — fall back to mailto.
+        // No API on static hosts — fall back to mailto.
         if (res.status === 404 || res.status === 405) {
           openMailtoShare(raw, subject, message);
           return;
         }
-        const errMsg =
-          (data && data.error) ||
-          "Failed to send. Try Copy text, or check config.txt / serve.py (see SHARE_EMAIL.md).";
-        setShareStatus(errMsg, true);
+        setShareStatus(formatShareSendError(res, data), true);
       })
       .catch(function (err) {
         console.error(err);
-        openMailtoShare(raw, subject, message);
+        if (isStaticShareHost()) {
+          openMailtoShare(raw, subject, message);
+          return;
+        }
+        const detail = err && err.message ? err.message : "network error";
+        setShareStatus(
+          "Could not reach share API (" +
+            detail +
+            "). Run python serve.py (not http.server) and open http://127.0.0.1:8765/",
+          true
+        );
       })
       .finally(function () {
         if (sendBtn) sendBtn.disabled = false;

@@ -168,9 +168,27 @@ class UTHHandler(SimpleHTTPRequestHandler):
 
         try:
             send_email(to_email, subject, message, cfg)
+        except smtplib.SMTPAuthenticationError as exc:
+            log.error("SMTP auth failed: %s", exc)
+            self._json(
+                500,
+                {
+                    "ok": False,
+                    "error": (
+                        "Gmail authentication failed. Check GMAIL_ADDRESS / "
+                        "GMAIL_APP_PASSWORD in config.txt (use an App Password, "
+                        "not your normal password)."
+                    ),
+                },
+            )
+            return
+        except (smtplib.SMTPException, OSError, TimeoutError) as exc:
+            log.error("Failed to send email: %s", exc)
+            self._json(500, {"ok": False, "error": f"SMTP error: {exc}"})
+            return
         except Exception as exc:
             log.error("Failed to send email: %s", exc)
-            self._json(500, {"ok": False, "error": "Failed to send email."})
+            self._json(500, {"ok": False, "error": f"Failed to send email: {exc}"})
             return
 
         log.info("Share hand emailed to %s", to_email)
@@ -183,13 +201,23 @@ class UTHHandler(SimpleHTTPRequestHandler):
 def main() -> int:
     cfg = load_config()
     configured = bool(cfg.get("GMAIL_ADDRESS") and cfg.get("GMAIL_APP_PASSWORD"))
-    server = ThreadingHTTPServer((HOST, PORT), UTHHandler)
+    try:
+        server = ThreadingHTTPServer((HOST, PORT), UTHHandler)
+    except OSError as exc:
+        log.error(
+            "Could not bind http://%s:%s/ (%s). Stop any other process on that port "
+            "(e.g. python -m http.server) and run: python serve.py",
+            HOST,
+            PORT,
+            exc,
+        )
+        return 1
     log.info("Serving Ultimate Texas Hold'em at http://%s:%s/", HOST, PORT)
     if configured:
         log.info("Share email: Gmail SMTP ready (config.txt)")
     else:
         log.warning(
-            "Share email: copy config.example.txt → config.txt and add Gmail credentials"
+            "Share email: copy config.example.txt to config.txt and add Gmail credentials"
         )
     try:
         server.serve_forever()
