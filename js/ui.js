@@ -241,6 +241,9 @@
       '<p class="feedback-line"><span class="feedback-tag">Wizard</span> ' +
       escapeHtml(fb.briefWizard) +
       "</p>" +
+      (fb.pedagogyNote
+        ? '<p class="feedback-pedagogy">' + escapeHtml(fb.pedagogyNote) + "</p>"
+        : "") +
       '<button type="button" class="ev-details-btn" id="btn-ev-details">More details</button>';
   }
 

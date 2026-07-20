@@ -162,6 +162,8 @@ function playerAct(game, action) {
     playerAction: action,
     advice,
     wizard,
+    playerHole: hand.playerHole,
+    board: hand.board,
   });
 
   game.stats.decisions += 1;

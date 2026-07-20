@@ -4,7 +4,7 @@
  * No Monte Carlo sampling.
  */
 (function () {
-const { bestHand } = window.UTHHand;
+const { bestHand, HAND } = window.UTHHand;
 const { cardLabel, RANK_LABELS } = window.UTHCards;
 
 function handRankValue(cards) {
@@ -368,7 +368,97 @@ function getAdvice(street, state) {
 }
 
 /**
- * @param {{ street: string, playerAction: string, advice: Advice, wizard: { action: string, reasons: string[] } }} ctx
+ * Ranks that complete a straight from hole+board (for flop draw hints).
+ * @param {import('./cards.js').Card[]} hole
+ * @param {import('./cards.js').Card[]} board
+ * @returns {number[]}
+ */
+function playerStraightCompletingRanks(hole, board) {
+  const ranks = new Set([...hole, ...board].map((c) => c.rank));
+  /** @type {number[]} */
+  const completing = [];
+  for (let r = 2; r <= 14; r++) {
+    if (ranks.has(r)) continue;
+    const withRank = new Set(ranks);
+    withRank.add(r);
+    if (ranksContainStraight(withRank)) completing.push(r);
+  }
+  return completing;
+}
+
+/** @param {Set<number>} rankSet */
+function ranksContainStraight(rankSet) {
+  for (let high = 14; high >= 6; high--) {
+    let ok = true;
+    for (let d = 0; d < 5; d++) {
+      if (!rankSet.has(high - d)) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return true;
+  }
+  return (
+    rankSet.has(14) &&
+    rankSet.has(5) &&
+    rankSet.has(4) &&
+    rankSet.has(3) &&
+    rankSet.has(2)
+  );
+}
+
+/**
+ * Short teaching note when flop EV ≠ Wizard (combo draws, etc.).
+ * @param {import('./cards.js').Card[]} hole
+ * @param {import('./cards.js').Card[]} flop
+ * @param {string} evAction
+ * @param {string} wizardAction
+ * @returns {string | null}
+ */
+function flopDisagreementNote(hole, flop, evAction, wizardAction) {
+  if (evAction === wizardAction) return null;
+  const flushFn = window.UTHWizard && window.UTHWizard.flushDrawInfo;
+  const flush = typeof flushFn === "function" ? flushFn(hole, flop) : null;
+  const made = bestHand(hole, flop);
+  const straightOuts = playerStraightCompletingRanks(hole, flop);
+  const gutshot = straightOuts.length === 1;
+  const oesd = straightOuts.length >= 2;
+  const weakFlush = flush && !flush.qualifies;
+  const pairOrBetter = made.category >= HAND.PAIR;
+
+  if (evAction === "raise2" && wizardAction === "check") {
+    if (weakFlush && (gutshot || oesd)) {
+      return (
+        "EV raises this combo draw (weak flush draw + " +
+        (oesd ? "open-ended" : "gutshot") +
+        " straight draw); Wizard’s flop chart checks."
+      );
+    }
+    if (weakFlush) {
+      return "EV raises this weak flush draw; Wizard only raises flush draws with a hidden 10+.";
+    }
+    if (gutshot || oesd) {
+      return (
+        "EV raises this " +
+        (oesd ? "open-ended" : "gutshot") +
+        " straight draw; Wizard checks without a qualifying made hand or flush draw."
+      );
+    }
+    if (pairOrBetter) {
+      return "EV raises here with " + made.name + "; Wizard’s simplified flop rules check — grading follows EV.";
+    }
+    return "EV raises a thin flop that Wizard checks — grading follows EV (combo equity Wizard’s chart misses).";
+  }
+
+  if (evAction === "check" && wizardAction === "raise2") {
+    return "Wizard raises here, but EV prefers check — grading follows EV.";
+  }
+
+  return "EV and Wizard disagree on this flop — grading follows EV.";
+}
+
+/**
+ * @param {{ street: string, playerAction: string, advice: Advice, wizard: { action: string, reasons: string[] }, playerHole?: import('./cards.js').Card[], board?: import('./cards.js').Card[] }} ctx
  */
 function explainDecision(ctx) {
   const { street, playerAction, advice, wizard } = ctx;
@@ -380,6 +470,8 @@ function explainDecision(ctx) {
   let briefEv = "";
   /** @type {string[]} */
   const detailLines = [];
+  /** @type {string | null} */
+  let pedagogyNote = null;
 
   if (street === "river" && advice.details.analysis) {
     const a = advice.details.analysis;
@@ -409,6 +501,15 @@ function explainDecision(ctx) {
     detailLines.push(
       `Edge: ${fmt(Math.abs(e.raiseEv - e.checkEv))} units in favor of ${actionLabel(correctAction)} (${e.boards.toLocaleString()} boards, exact).`
     );
+    if (!evMatchesWizard && ctx.playerHole && ctx.board) {
+      pedagogyNote = flopDisagreementNote(
+        ctx.playerHole,
+        ctx.board.slice(0, 3),
+        advice.action,
+        wizard.action
+      );
+      if (pedagogyNote) detailLines.push(pedagogyNote);
+    }
   } else if (street === "preflop" && advice.details.ev) {
     const e = advice.details.ev;
     briefEv =
@@ -438,6 +539,7 @@ function explainDecision(ctx) {
     playerAction,
     briefEv,
     briefWizard,
+    pedagogyNote,
     detailLines,
     ev: advice.evs,
     wizardAction: wizard.action,

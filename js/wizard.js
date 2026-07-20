@@ -464,5 +464,6 @@ window.UTHWizard = {
   countWizardOuts,
   boardStraightCompletingRanks,
   boardFourFlushSuit,
+  flushDrawInfo,
 };
 })();
