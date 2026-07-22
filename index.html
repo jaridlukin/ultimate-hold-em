@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=16" />
+    <link rel="stylesheet" href="styles.css?v=18" />
   </head>
   <body>
     <div class="app">
@@ -35,6 +35,7 @@
               <span>Hands</span>
             </div>
           </div>
+          <button type="button" class="reset-stats-link" id="btn-leaderboard">Leaderboard</button>
           <button type="button" class="reset-stats-link" id="btn-reset-stats">Reset stats</button>
         </div>
       </header>
@@ -143,13 +144,90 @@
       </div>
     </div>
 
-    <script src="js/email-config.js?v=5"></script>
+    <div class="ev-modal" id="username-modal" hidden>
+      <div class="ev-modal-backdrop" tabindex="-1"></div>
+      <div
+        class="ev-modal-dialog share-modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="username-modal-title"
+      >
+        <div class="ev-modal-header">
+          <h2 id="username-modal-title">Enter your name</h2>
+        </div>
+        <div class="ev-modal-body">
+          <p class="username-intro">Arcade leaderboard handle — saved in this browser.</p>
+          <label class="share-label" for="username-input">Username</label>
+          <input
+            type="text"
+            id="username-input"
+            class="share-email-input"
+            maxlength="24"
+            autocomplete="nickname"
+            placeholder="e.g. FeltShark"
+            spellcheck="false"
+          />
+          <p class="share-error" id="username-error" hidden role="alert"></p>
+          <div class="share-actions">
+            <button type="button" class="btn-raise" id="btn-username-save">Play</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ev-modal" id="leaderboard-modal" hidden>
+      <div class="ev-modal-backdrop" data-lb-close tabindex="-1"></div>
+      <div
+        class="ev-modal-dialog leaderboard-modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="leaderboard-modal-title"
+      >
+        <div class="ev-modal-header">
+          <h2 id="leaderboard-modal-title">High Scores</h2>
+          <button type="button" class="ev-modal-close" data-lb-close aria-label="Close">
+            ×
+          </button>
+        </div>
+        <div class="ev-modal-body">
+          <p class="leaderboard-status" id="leaderboard-status" role="status"></p>
+          <div class="leaderboard-table-wrap">
+            <table class="leaderboard-table" id="leaderboard-table">
+              <thead>
+                <tr>
+                  <th scope="col" class="lb-rank">#</th>
+                  <th scope="col">Player</th>
+                  <th scope="col">
+                    <button type="button" class="lb-sort" data-lb-sort="bankroll" aria-pressed="true">
+                      Bankroll
+                    </button>
+                  </th>
+                  <th scope="col">
+                    <button type="button" class="lb-sort" data-lb-sort="accuracy" aria-pressed="false">
+                      Accuracy
+                    </button>
+                  </th>
+                  <th scope="col">
+                    <button type="button" class="lb-sort" data-lb-sort="hands" aria-pressed="false">
+                      Hands
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="leaderboard-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/email-config.js?v=6"></script>
     <script src="js/cards.js?v=7"></script>
     <script src="js/hand.js?v=7"></script>
     <script src="js/preflop-ev.js?v=9"></script>
     <script src="js/wizard.js?v=10"></script>
     <script src="js/strategy.js?v=8"></script>
     <script src="js/game.js?v=11"></script>
-    <script src="js/ui.js?v=16"></script>
+    <script src="js/ui.js?v=17"></script>
   </body>
 </html>

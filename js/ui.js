@@ -36,6 +36,9 @@
 
   const EMAIL_RE =
     /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+  const USERNAME_KEY = "uth-trainer-username";
+  const USERNAME_RE = /^[\w .'-]{1,24}$/u;
+  const LB_CACHE_KEY = "uth-trainer-leaderboard-cache";
 
   const game = gameApi.createGame();
 
@@ -61,7 +64,19 @@
     shareEmail: document.getElementById("share-email"),
     shareError: document.getElementById("share-error"),
     shareStatus: document.getElementById("share-status"),
+    usernameModal: document.getElementById("username-modal"),
+    usernameInput: document.getElementById("username-input"),
+    usernameError: document.getElementById("username-error"),
+    leaderboardModal: document.getElementById("leaderboard-modal"),
+    leaderboardStatus: document.getElementById("leaderboard-status"),
+    leaderboardBody: document.getElementById("leaderboard-body"),
   };
+
+  var pendingDealAfterUsername = false;
+  var leaderboardSort = "bankroll";
+  var leaderboardEntries = [];
+  var leaderboardUnavailable = false;
+  var scoreSyncTimer = null;
 
   function money(n) {
     const sign = n < 0 ? "−" : "";
@@ -113,6 +128,322 @@
     const correct = game.stats.correct;
     els.accuracy.textContent =
       decisions === 0 ? "—" : Math.round((100 * correct) / decisions) + "% (" + correct + "/" + decisions + ")";
+    scheduleScoreSync();
+  }
+
+  function accuracyPercent() {
+    const decisions = game.stats.decisions;
+    if (!decisions) return 0;
+    return Math.round((100 * game.stats.correct) / decisions);
+  }
+
+  function loadUsername() {
+    try {
+      const raw = localStorage.getItem(USERNAME_KEY);
+      if (!raw) return "";
+      return sanitizeUsername(raw) || "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function saveUsername(name) {
+    try {
+      localStorage.setItem(USERNAME_KEY, name);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function sanitizeUsername(raw) {
+    const name = String(raw || "")
+      .trim()
+      .replace(/\s+/g, " ");
+    if (!name || name.length > 24) return null;
+    if (!USERNAME_RE.test(name)) return null;
+    return name;
+  }
+
+  function anyModalOpen() {
+    return (
+      (els.evModal && !els.evModal.hidden) ||
+      (els.shareModal && !els.shareModal.hidden) ||
+      (els.usernameModal && !els.usernameModal.hidden) ||
+      (els.leaderboardModal && !els.leaderboardModal.hidden)
+    );
+  }
+
+  function syncModalBodyClass() {
+    document.body.classList.toggle("ev-modal-open", anyModalOpen());
+  }
+
+  function setUsernameError(msg) {
+    if (!els.usernameError) return;
+    if (msg) {
+      els.usernameError.hidden = false;
+      els.usernameError.textContent = msg;
+    } else {
+      els.usernameError.hidden = true;
+      els.usernameError.textContent = "";
+    }
+  }
+
+  function openUsernameModal() {
+    if (!els.usernameModal) return;
+    closeEvDetails();
+    closeShareModal();
+    closeLeaderboardModal();
+    setUsernameError("");
+    if (els.usernameInput) els.usernameInput.value = loadUsername();
+    els.usernameModal.hidden = false;
+    syncModalBodyClass();
+    if (els.usernameInput) els.usernameInput.focus();
+  }
+
+  function closeUsernameModal() {
+    if (!els.usernameModal || els.usernameModal.hidden) return;
+    els.usernameModal.hidden = true;
+    syncModalBodyClass();
+  }
+
+  function commitUsernameAndMaybeDeal() {
+    const cleaned = sanitizeUsername(els.usernameInput ? els.usernameInput.value : "");
+    if (!cleaned) {
+      setUsernameError("Enter a name (1–24 letters, numbers, spaces, _ - . ').");
+      if (els.usernameInput) els.usernameInput.focus();
+      return;
+    }
+    saveUsername(cleaned);
+    closeUsernameModal();
+    if (pendingDealAfterUsername) {
+      pendingDealAfterUsername = false;
+      dealNewHandNow();
+    }
+  }
+
+  function ensureUsernameThenDeal() {
+    if (loadUsername()) {
+      dealNewHandNow();
+      return;
+    }
+    pendingDealAfterUsername = true;
+    openUsernameModal();
+  }
+
+  function apiBase() {
+    return shareApiBase();
+  }
+
+  function currentScorePayload() {
+    const username = loadUsername();
+    if (!username) return null;
+    return {
+      username: username,
+      bankroll: game.bankroll,
+      accuracy: accuracyPercent(),
+      hands: game.handNumber,
+    };
+  }
+
+  function scheduleScoreSync() {
+    if (!loadUsername()) return;
+    if (scoreSyncTimer) clearTimeout(scoreSyncTimer);
+    scoreSyncTimer = setTimeout(function () {
+      scoreSyncTimer = null;
+      syncScoreToServer();
+    }, 1200);
+  }
+
+  function syncScoreToServer() {
+    const payload = currentScorePayload();
+    const base = apiBase();
+    if (!payload || !base) return;
+    fetch(base + "/api/leaderboard", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    }).catch(function () {
+      /* play continues offline */
+    });
+  }
+
+  function loadCachedLeaderboard() {
+    try {
+      const raw = sessionStorage.getItem(LB_CACHE_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (!data || !Array.isArray(data.entries)) return null;
+      return data;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function saveCachedLeaderboard(entries, sort) {
+    try {
+      sessionStorage.setItem(
+        LB_CACHE_KEY,
+        JSON.stringify({ entries: entries, sort: sort, at: Date.now() })
+      );
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function sortLeaderboardLocal(entries, sortKey) {
+    const key = sortKey || "bankroll";
+    return entries.slice().sort(function (a, b) {
+      const av = Number(a[key]) || 0;
+      const bv = Number(b[key]) || 0;
+      if (bv !== av) return bv - av;
+      const ab = Number(a.bankroll) || 0;
+      const bb = Number(b.bankroll) || 0;
+      if (bb !== ab) return bb - ab;
+      return (Number(b.hands) || 0) - (Number(a.hands) || 0);
+    });
+  }
+
+  function setLeaderboardStatus(msg, isError) {
+    if (!els.leaderboardStatus) return;
+    els.leaderboardStatus.textContent = msg || "";
+    els.leaderboardStatus.classList.toggle("is-error", !!isError);
+  }
+
+  function updateSortButtons() {
+    document.querySelectorAll(".lb-sort").forEach(function (btn) {
+      const active = btn.getAttribute("data-lb-sort") === leaderboardSort;
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  function renderLeaderboardTable() {
+    if (!els.leaderboardBody) return;
+    updateSortButtons();
+    const ranked = sortLeaderboardLocal(leaderboardEntries, leaderboardSort).slice(0, 10);
+    if (!ranked.length) {
+      els.leaderboardBody.innerHTML =
+        '<tr><td colspan="5" class="lb-empty">No scores yet — deal a hand and claim the board.</td></tr>';
+      return;
+    }
+    els.leaderboardBody.innerHTML = ranked
+      .map(function (row, i) {
+        const name = escapeHtml(String(row.username || "—"));
+        const bank = money(Number(row.bankroll) || 0);
+        const acc = Math.round(Number(row.accuracy) || 0) + "%";
+        const hands = String(Math.max(0, Math.floor(Number(row.hands) || 0)));
+        return (
+          "<tr>" +
+          '<td class="lb-rank">' +
+          (i + 1) +
+          "</td>" +
+          '<td class="lb-player" title="' +
+          name +
+          '">' +
+          name +
+          "</td>" +
+          '<td class="lb-num">' +
+          bank +
+          "</td>" +
+          '<td class="lb-num">' +
+          acc +
+          "</td>" +
+          '<td class="lb-num">' +
+          hands +
+          "</td>" +
+          "</tr>"
+        );
+      })
+      .join("");
+  }
+
+  function fetchLeaderboard() {
+    const base = apiBase();
+    if (!base) {
+      leaderboardUnavailable = true;
+      const cached = loadCachedLeaderboard();
+      if (cached) {
+        leaderboardEntries = cached.entries;
+        setLeaderboardStatus("Leaderboard unavailable — showing last cached scores.", true);
+        renderLeaderboardTable();
+        return;
+      }
+      leaderboardEntries = [];
+      setLeaderboardStatus(
+        "Leaderboard unavailable. Set apiUrl in js/email-config.js (see SHARE_EMAIL.md), or open via python serve.py.",
+        true
+      );
+      renderLeaderboardTable();
+      return;
+    }
+
+    setLeaderboardStatus("Loading…");
+    fetch(base + "/api/leaderboard?sort=" + encodeURIComponent(leaderboardSort) + "&limit=50")
+      .then(function (res) {
+        return res.json().then(
+          function (data) {
+            return { res: res, data: data };
+          },
+          function () {
+            return { res: res, data: null };
+          }
+        );
+      })
+      .then(function (result) {
+        if (!result.res.ok || !result.data || !result.data.ok || !Array.isArray(result.data.entries)) {
+          throw new Error("bad response");
+        }
+        leaderboardUnavailable = false;
+        leaderboardEntries = result.data.entries;
+        saveCachedLeaderboard(leaderboardEntries, leaderboardSort);
+        const you = loadUsername();
+        setLeaderboardStatus(you ? "Playing as " + you : "Top 10 — click a column to sort");
+        renderLeaderboardTable();
+      })
+      .catch(function () {
+        leaderboardUnavailable = true;
+        const cached = loadCachedLeaderboard();
+        if (cached) {
+          leaderboardEntries = cached.entries;
+          setLeaderboardStatus("Leaderboard unavailable — showing last cached scores.", true);
+        } else {
+          leaderboardEntries = [];
+          setLeaderboardStatus("Leaderboard unavailable — play continues offline.", true);
+        }
+        renderLeaderboardTable();
+      });
+  }
+
+  function openLeaderboardModal() {
+    if (!els.leaderboardModal) return;
+    closeEvDetails();
+    closeShareModal();
+    closeUsernameModal();
+    els.leaderboardModal.hidden = false;
+    syncModalBodyClass();
+    fetchLeaderboard();
+    const closeBtn = els.leaderboardModal.querySelector(".ev-modal-close");
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function closeLeaderboardModal() {
+    if (!els.leaderboardModal || els.leaderboardModal.hidden) return;
+    els.leaderboardModal.hidden = true;
+    syncModalBodyClass();
+  }
+
+  function setLeaderboardSort(sortKey) {
+    if (sortKey !== "bankroll" && sortKey !== "accuracy" && sortKey !== "hands") return;
+    leaderboardSort = sortKey;
+    if (leaderboardEntries.length) {
+      renderLeaderboardTable();
+      if (!leaderboardUnavailable) {
+        const you = loadUsername();
+        setLeaderboardStatus(you ? "Playing as " + you : "Top 10 — click a column to sort");
+      }
+      return;
+    }
+    fetchLeaderboard();
   }
 
   function setChip(label, amount, empty) {
@@ -184,20 +515,26 @@
 
   var dealing = false;
 
-  function dealNewHand() {
+  function dealNewHandNow() {
     if (dealing) return;
     dealing = true;
     try {
       closeEvDetails();
       closeShareModal();
+      closeLeaderboardModal();
       gameApi.startHand(game);
       render();
+      scheduleScoreSync();
     } catch (err) {
       console.error(err);
       alert("Deal failed: " + (err && err.message ? err.message : err));
     } finally {
       dealing = false;
     }
+  }
+
+  function dealNewHand() {
+    ensureUsernameThenDeal();
   }
 
   window.startUTHHand = dealNewHand;
@@ -251,13 +588,14 @@
     const fb = game.lastFeedback;
     if (!fb || !els.evModal || !els.evModalList) return;
     closeShareModal();
+    closeLeaderboardModal();
     els.evModalList.innerHTML = (fb.detailLines || [])
       .map(function (line) {
         return "<li>" + escapeHtml(line) + "</li>";
       })
       .join("");
     els.evModal.hidden = false;
-    document.body.classList.add("ev-modal-open");
+    syncModalBodyClass();
     const closeBtn = els.evModal.querySelector(".ev-modal-close");
     if (closeBtn) closeBtn.focus();
   }
@@ -265,9 +603,7 @@
   function closeEvDetails() {
     if (!els.evModal || els.evModal.hidden) return;
     els.evModal.hidden = true;
-    if (!els.shareModal || els.shareModal.hidden) {
-      document.body.classList.remove("ev-modal-open");
-    }
+    syncModalBodyClass();
   }
 
   function setShareError(msg) {
@@ -299,8 +635,17 @@
     return /\.github\.io$/i.test(host) || /\.pages\.dev$/i.test(host);
   }
 
+  function isLocalDevHost() {
+    const host = location.hostname || "";
+    return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+  }
+
   function shareApiBase() {
     const cfg = window.UTHEmailConfig || {};
+    // Local serve.py: always same-origin so a Pages tunnel apiUrl can't break local testing.
+    if (isLocalDevHost() && (location.protocol === "http:" || location.protocol === "https:")) {
+      return location.origin;
+    }
     if (cfg.apiUrl && String(cfg.apiUrl).trim()) {
       return String(cfg.apiUrl).trim().replace(/\/$/, "");
     }
@@ -337,20 +682,19 @@
   function openShareModal() {
     if (!els.shareModal || game.phase !== "showdown") return;
     closeEvDetails();
+    closeLeaderboardModal();
     setShareError("");
     setShareStatus("");
     if (els.shareEmail) els.shareEmail.value = "";
     els.shareModal.hidden = false;
-    document.body.classList.add("ev-modal-open");
+    syncModalBodyClass();
     if (els.shareEmail) els.shareEmail.focus();
   }
 
   function closeShareModal() {
     if (!els.shareModal || els.shareModal.hidden) return;
     els.shareModal.hidden = true;
-    if (!els.evModal || els.evModal.hidden) {
-      document.body.classList.remove("ev-modal-open");
-    }
+    syncModalBodyClass();
   }
 
   function currentShareSummary() {
@@ -615,6 +959,22 @@
       copyShareSummary();
       return;
     }
+    if (t.closest("#btn-leaderboard")) {
+      ev.preventDefault();
+      openLeaderboardModal();
+      return;
+    }
+    if (t.closest("#btn-username-save")) {
+      ev.preventDefault();
+      commitUsernameAndMaybeDeal();
+      return;
+    }
+    var sortBtn = t.closest("[data-lb-sort]");
+    if (sortBtn) {
+      ev.preventDefault();
+      setLeaderboardSort(sortBtn.getAttribute("data-lb-sort"));
+      return;
+    }
     if (t.closest("#btn-reset-stats")) {
       ev.preventDefault();
       if (!confirm("Reset bankroll, accuracy, and hands?")) return;
@@ -625,6 +985,11 @@
     if (t.closest("#btn-ev-details")) {
       ev.preventDefault();
       openEvDetails();
+      return;
+    }
+    if (t.closest("[data-lb-close]")) {
+      ev.preventDefault();
+      closeLeaderboardModal();
       return;
     }
     if (t.closest("[data-share-close]")) {
@@ -640,6 +1005,13 @@
 
   document.addEventListener("keydown", function (ev) {
     if (ev.key === "Escape") {
+      if (els.usernameModal && !els.usernameModal.hidden) {
+        // Username required before first hand — Escape cancels pending deal only.
+        pendingDealAfterUsername = false;
+        closeUsernameModal();
+        return;
+      }
+      closeLeaderboardModal();
       closeShareModal();
       closeEvDetails();
     }
@@ -653,6 +1025,23 @@
       }
     });
   }
+
+  if (els.usernameInput) {
+    els.usernameInput.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        commitUsernameAndMaybeDeal();
+      }
+    });
+  }
+
+  window.addEventListener("pagehide", function () {
+    if (scoreSyncTimer) {
+      clearTimeout(scoreSyncTimer);
+      scoreSyncTimer = null;
+    }
+    syncScoreToServer();
+  });
 
   render();
 })();

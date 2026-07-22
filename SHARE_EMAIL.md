@@ -2,6 +2,8 @@
 
 **Send** emails a hand summary via **Gmail SMTP** (same pattern as vegas-hotels). **Copy text** copies the summary to the clipboard.
 
+The same `apiUrl` also powers the arcade **leaderboard** (`GET`/`POST /api/leaderboard`).
+
 ## Why GitHub Pages opened the email app
 
 `https://jaridlukin.github.io/ultimate-hold-em/` is **static**. It cannot run Python or talk to Gmail SMTP directly.
@@ -14,7 +16,7 @@ Silent SMTP requires a public **HTTPS** backend that runs `serve.py`’s `POST /
 python serve.py
 ```
 
-Open **http://127.0.0.1:8765/** — leave `apiUrl` empty so the page calls same-origin `/api/send-email`.
+Open **http://127.0.0.1:8765/** (default) or whatever port `serve.py` prints. On localhost / 127.0.0.1, the client **ignores** `apiUrl` and uses same-origin `/api/send-email` and `/api/leaderboard`, so a dead Pages tunnel cannot break local testing. Do not use `python -m http.server` — it has no API routes.
 
 ## Production (GitHub Pages)
 
@@ -33,9 +35,9 @@ window.UTHEmailConfig = {
 };
 ```
 
-4. Deploy Pages (commit/push). Share on github.io will POST to that API over HTTPS (no mail app).
+4. Deploy Pages (commit/push). Share + leaderboard on github.io will POST/GET that API over HTTPS.
 
-**Note:** Quick tunnels die when the process stops or the URL rotates. For a permanent URL, deploy `serve.py` to a small host (Render/Fly/VPS) with env `GMAIL_ADDRESS` / `GMAIL_APP_PASSWORD`, then set `apiUrl` to that host.
+**Note:** Quick tunnels die when the process stops or the URL rotates. For a permanent URL, deploy `serve.py` to a small host (Render/Fly/VPS) with env `GMAIL_ADDRESS` / `GMAIL_APP_PASSWORD`, then set `apiUrl` to that host. Leaderboard data lives in `data/leaderboard.json` on that host (gitignored).
 
 ## Credentials
 
