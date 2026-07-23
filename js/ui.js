@@ -596,6 +596,8 @@
       .join("");
     els.evModal.hidden = false;
     syncModalBodyClass();
+    const body = els.evModal.querySelector(".ev-modal-body");
+    if (body) body.scrollTop = 0;
     const closeBtn = els.evModal.querySelector(".ev-modal-close");
     if (closeBtn) closeBtn.focus();
   }

@@ -436,12 +436,12 @@ function wizardRiver(hole, board, remaining) {
   const outs = countWizardOuts(hole, board, remaining, made.player, made);
   if (outs.count < 21) {
     reasons.push(`Only ${outs.count} dealer outs beat you (< 21) — raise 1×.`);
-    for (const line of outs.breakdown.slice(0, 4)) reasons.push(line);
+    for (const line of outs.breakdown) reasons.push(line);
     return { action: "raise1", reasons };
   }
 
   reasons.push(`${outs.count} dealer outs beat you (≥ 21) — fold.`);
-  for (const line of outs.breakdown.slice(0, 4)) reasons.push(line);
+  for (const line of outs.breakdown) reasons.push(line);
   return { action: "fold", reasons };
 }
 
